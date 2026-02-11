@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสารสนเทศโครงการตำบลสันกลาง (Smart Hover Fix)</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body { font-family: 'Sarabun', sans-serif; overflow: hidden; margin: 0; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* Login Overlay Styles */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+            z-index: 9999; display: flex; align-items: center; justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        .login-card {
+            background: white; padding: 40px; border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); width: 100%; max-width: 400px; text-align: center;
+        }
+        .login-logo {
+            width: 80px; height: 80px; background: #e9ecef; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 35px; color: #0d6efd; margin: 0 auto 20px auto;
+        }
+
+        path.leaflet-interactive:focus { outline: none; }
+        .moo-label { background: transparent !important; border: none !important; box-shadow: none !important; font-size: 14px; font-weight: 700; color: #0d47a1; text-align: center; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff; white-space: nowrap; }
+        .filter-card { position: absolute; top: 20px; left: 20px; z-index: 1000; width: 320px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: none; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        .map-toggle-group { position: absolute; top: 20px; right: 20px; z-index: 1000; background: white; border-radius: 50px; padding: 5px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; gap: 5px; }
+        .toggle-btn { border: none; background: transparent; padding: 8px 16px; border-radius: 50px; font-size: 14px; font-weight: 600; color: #6c757d; transition: all 0.3s; }
+        .toggle-btn.active { background: #0d6efd; color: white; box-shadow: 0 2px 10px rgba(13, 110, 253, 0.3); }
+        .logout-btn { background: #dc3545; color: white; }
+        .logout-btn:hover { background: #bb2d3b; color: white; }
+
+        .bottom-right-tools { position: absolute; bottom: 100px; right: 10px; z-index: 900; display: flex; flex-direction: column; align-items: end; gap: 10px; }
+        .round-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2); color: #333; font-size: 20px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+        .round-btn:hover { background: #f8f9fa; transform: scale(1.1); }
+        .round-btn.active { background: #0d6efd; color: white; } 
+        .round-btn.street-active { background: #ffc107; color: #000; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); } }
+        
+        .layer-control-card { width: 280px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden; transition: all 0.3s ease; transform-origin: bottom right; margin-bottom: 5px; }
+        .layer-control-card.hidden { transform: scale(0); opacity: 0; pointer-events: none; height: 0; margin: 0; }
+        .layer-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
+        .layer-item:hover { background: #f8f9fa; }
+        .layer-name { font-weight: 600; font-size: 14px; color: #333; }
+        .eye-icon { color: #0d6efd; font-size: 16px; width: 20px; text-align: center; }
+        .eye-icon.disabled { color: #ccc; }
+
+        .detail-sidebar { position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; background: white; z-index: 2000; box-shadow: -5px 0 25px rgba(0,0,0,0.15); transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); overflow-y: auto; display: flex; flex-direction: column; }
+        .detail-sidebar.active { right: 0; }
+        .list-sidebar { position: fixed; top: 0; left: -400px; width: 350px; height: 100vh; background: white; z-index: 2000; box-shadow: 5px 0 25px rgba(0,0,0,0.15); transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); overflow-y: auto; display: flex; flex-direction: column; }
+        .list-sidebar.active { left: 0; }
+        .sidebar-header { background: #0d6efd; color: white; padding: 20px; position: sticky; top: 0; z-index: 10; }
+        .sidebar-content { padding: 25px; flex-grow: 1; }
+        .close-sidebar-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
+        .info-row { margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .info-label { font-size: 12px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+        .info-value { font-size: 16px; color: #333; font-weight: 500; }
+
+        .stat-card { background: white; border-radius: 10px; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 700; color: #0d6efd; }
+        .stat-label { font-size: 12px; color: #6c757d; }
+        .project-list-item { cursor: pointer; transition: all 0.2s; border-left: 4px solid transparent; }
+        .project-list-item:hover { background-color: #f8f9fa; border-left: 4px solid #0d6efd; }
+
+        #coord-tooltip { position: absolute; z-index: 5000; background: rgba(0, 0, 0, 0.8); color: #fff; padding: 5px 10px; border-radius: 5px; font-size: 12px; font-weight: bold; pointer-events: none; display: none; white-space: nowrap; transform: translate(15px, 15px); box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <div id="loginOverlay">
+        <div class="login-card">
+            <div class="login-logo"><i class="fa-solid fa-map-location-dot"></i></div>
+            <h4 class="fw-bold mb-1">ยินดีต้อนรับ</h4>
+            <p class="text-muted small mb-4">ระบบสารสนเทศโครงการตำบลสันกลาง</p>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="mb-3 text-start">
+                    <label class="form-label small fw-bold text-muted">อีเมล</label>
+                    <input type="email" id="authEmail" class="form-control" placeholder="admin@example.com" required>
+                </div>
+                <div class="mb-4 text-start">
+                    <label class="form-label small fw-bold text-muted">รหัสผ่าน</label>
+                    <input type="password" id="authPassword" class="form-control" placeholder="••••••••" required>
+                </div>
+                <button type="submit" id="loginBtn" class="btn btn-primary w-100 fw-bold py-2">เข้าสู่ระบบ</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="map"></div>
+    <div id="coord-tooltip"></div>
+
+    <div class="map-toggle-group">
+        <button class="toggle-btn active" onclick="setMapType('street')" id="btn-street"><i class="fa-solid fa-map"></i> แผนที่</button>
+        <button class="toggle-btn" onclick="setMapType('satellite')" id="btn-satellite"><i class="fa-solid fa-satellite"></i> ดาวเทียม</button>
+        <button class="toggle-btn logout-btn ms-2" onclick="handleLogout()" title="ออกจากระบบ"><i class="fa-solid fa-power-off"></i></button>
+    </div>
+
+    <div class="card filter-card p-3">
+        <h5 class="mb-3 text-primary"><i class="fa-solid fa-filter"></i> กรองข้อมูล</h5>
+        <div class="mb-3">
+            <label class="form-label small text-muted">ปีงบประมาณ</label>
+            <select id="yearFilter" class="form-select border-primary-subtle" onchange="loadMap()">
+                <option value="all">-- ทุกปีงบประมาณ --</option>
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label small text-muted">พื้นที่ดำเนินการ</label>
+            <select id="mooFilter" class="form-select border-primary-subtle" onchange="loadMap()">
+                <option value="all">-- ทุกหมู่บ้าน --</option>
+                <option value="1">หมู่ 1 บ้านสันกลาง</option>
+                <option value="2">หมู่ 2 บ้านคำซาว</option>
+                <option value="3">หมู่ 3 บ้านสันพระเจ้างาม</option>
+                <option value="4">หมู่ 4 บ้านแม่คาว</option>
+                <option value="5">หมู่ 5 บ้านมอญ</option>
+            </select>
+        </div>
+        <div class="d-grid gap-2">
+            <button onclick="loadMap()" class="btn btn-primary rounded-pill fw-bold shadow-sm"><i class="fa-solid fa-magnifying-glass"></i> ค้นหา</button>
+            <div class="d-flex gap-2">
+                <button onclick="toggleListSidebar()" class="btn btn-outline-primary w-50 rounded-pill fw-bold shadow-sm"><i class="fa-solid fa-list-ul"></i> รายชื่อ</button>
+                <button onclick="openDashboardModal()" class="btn btn-outline-success w-50 rounded-pill fw-bold shadow-sm"><i class="fa-solid fa-chart-pie"></i> สถิติ</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-right-tools">
+        <div id="layerCard" class="layer-control-card">
+            <div class="bg-light p-2 border-bottom text-center text-muted small fw-bold">LAYERS</div>
+            <div class="layer-item" onclick="toggleLayer('project', this)"><span class="layer-name"><i class="fa-solid fa-circle text-warning me-2"></i> โครงการพัฒนา</span><i class="fa-solid fa-eye eye-icon"></i></div>
+            <div class="layer-item" onclick="toggleLayer('moo', this)"><span class="layer-name"><i class="fa-regular fa-square text-primary me-2"></i> ขอบเขตหมู่บ้าน</span><i class="fa-solid fa-eye eye-icon"></i></div>
+            <div class="layer-item" onclick="toggleLayer('boundary', this)"><span class="layer-name"><i class="fa-regular fa-square text-danger me-2"></i> ขอบเขตตำบล</span><i class="fa-solid fa-eye eye-icon"></i></div>
+        </div>
+        <div class="d-flex gap-2">
+            <button id="btn-coord" class="round-btn" onclick="toggleCoordinateTool()" title="ดูพิกัด (Lat/Long)"><i class="fa-solid fa-location-crosshairs"></i></button>
+            <button id="btn-streetview" class="round-btn" onclick="toggleStreetViewMode()" title="สำรวจพื้นที่ (Street View)"><i class="fa-solid fa-street-view"></i></button>
+            <button class="round-btn" onclick="toggleLayerCard()" title="ซ่อน/แสดง เลเยอร์"><i class="fa-solid fa-layer-group"></i></button>
+        </div>
+    </div>
+
+    <div id="projectSidebar" class="detail-sidebar">
+        <div class="sidebar-header"><button class="close-sidebar-btn" onclick="closeSidebar('projectSidebar')"><i class="fa-solid fa-xmark"></i></button><h5 class="mb-0 fw-bold"><i class="fa-solid fa-circle-info me-2"></i>รายละเอียด</h5></div>
+        <div id="sidebarContent" class="sidebar-content"></div>
+    </div>
+
+    <div id="listSidebar" class="list-sidebar">
+        <div class="sidebar-header bg-primary"><button class="close-sidebar-btn" onclick="closeSidebar('listSidebar')"><i class="fa-solid fa-xmark"></i></button><h5 class="mb-0 fw-bold"><i class="fa-solid fa-list me-2"></i>รายชื่อโครงการ</h5></div>
+        <div class="p-3 bg-light border-bottom sticky-top" style="top:0;"><input type="text" id="projectSearch" class="form-control rounded-pill" placeholder="🔍 ค้นหาชื่อโครงการ..." onkeyup="filterProjectList(this.value)"></div>
+        <div id="listContent" class="list-group list-group-flush"></div>
+    </div>
+
+    <div class="modal fade" id="dashboardModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white"><h5 class="modal-title fw-bold"><i class="fa-solid fa-chart-line me-2"></i> สถิติโครงการ</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body bg-light">
+                    <div class="row g-3 mb-4">
+                        <div class="col-6"><div class="stat-card"><div class="stat-value" id="stat-count">0</div><div class="stat-label">จำนวนโครงการที่พบ</div></div></div>
+                        <div class="col-6"><div class="stat-card"><div class="stat-value text-success" id="stat-budget">0</div><div class="stat-label">งบประมาณรวม (บาท)</div></div></div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><h6 class="card-title text-center text-muted fw-bold">งบประมาณ (แยกรายปี)</h6><canvas id="budgetChart"></canvas></div></div></div>
+                        <div class="col-md-6"><div class="card h-100 border-0 shadow-sm"><div class="card-body"><h6 class="card-title text-center text-muted fw-bold">สัดส่วนงบประมาณ (แยกรายหมู่)</h6><div style="height: 250px; display: flex; justify-content: center;"><canvas id="mooChart"></canvas></div></div></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
+        var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
+
+        var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false, layers: [streetMap] });
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        var projectIcon = L.divIcon({ className: 'custom-div-icon', html: "<div style='background-color:#ffc107; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #333; box-shadow: 0 0 5px rgba(0,0,0,0.5);'></div>", iconSize: [12, 12], iconAnchor: [6, 6] });
+
+        var boundaryLayer, mooLayer, projectLayer;
+        let allFeatures = []; let currentStack = []; let currentFilteredData = [];
+        let budgetChartInstance = null; let mooChartInstance = null;
+
+        const supabaseUrl = 'https://azxinrvdwsvmchovvjpl.supabase.co'; 
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk'; 
+        const db = supabase.createClient(supabaseUrl, supabaseKey);
+
+        // ==========================================
+        // AUTHENTICATION
+        // ==========================================
+        async function checkSession() {
+            const { data: { session }, error } = await db.auth.getSession();
+            if (session) {
+                document.getElementById('loginOverlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loginOverlay').style.visibility = 'hidden';
+                    map.invalidateSize(); 
+                    if(allFeatures.length === 0) { loadMap(); loadBoundary(); loadMoo(); }
+                }, 500);
+            } else {
+                document.getElementById('loginOverlay').style.visibility = 'visible';
+                document.getElementById('loginOverlay').style.opacity = '1';
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const btn = document.getElementById('loginBtn');
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+            btn.disabled = true;
+
+            const { data, error } = await db.auth.signInWithPassword({ email, password });
+
+            btn.innerHTML = 'เข้าสู่ระบบ'; btn.disabled = false;
+
+            if (error) { Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบล้มเหลว', text: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่' }); } 
+            else { Swal.fire({ toast: true, position: 'top', icon: 'success', title: 'ยินดีต้อนรับเข้าสู่ระบบ', showConfirmButton: false, timer: 1500 }); checkSession(); }
+        }
+
+        async function handleLogout() {
+            Swal.fire({ title: 'ออกจากระบบ?', text: "คุณต้องการออกจากระบบสารสนเทศหรือไม่?", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#6c757d', confirmButtonText: 'ออกจากระบบ', cancelButtonText: 'ยกเลิก' }).then(async (result) => {
+                if (result.isConfirmed) { await db.auth.signOut(); window.location.reload(); }
+            });
+        }
+        document.addEventListener('DOMContentLoaded', checkSession);
+
+        // ==========================================
+        // Geometry Utils
+        // ==========================================
+        function isPointInPolygon(point, vs) {
+            var x = point[0], y = point[1]; var inside = false;
+            for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1];
+                var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            } return inside;
+        }
+        function isPointInMultiPolygon(point, multiPolyCoords) {
+            for (let i = 0; i < multiPolyCoords.length; i++) {
+                let ring = multiPolyCoords[i][0]; if (isPointInPolygon(point, ring)) return true;
+            } return false;
+        }
+
+        // ==========================================
+        // 🔥 SMART HOVER & MULTI-TOOL LOGIC
+        // ==========================================
+        let isStreetViewActive = false; let isCoordToolActive = false;
+
+        function toggleStreetViewMode() {
+            isStreetViewActive = !isStreetViewActive;
+            if (isStreetViewActive) {
+                isCoordToolActive = false; updateToolUI();
+                Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'โหมดสำรวจ: คลิกเพื่อดู Street View', showConfirmButton: false, timer: 3000 });
+            } else { updateToolUI(); }
+        }
+
+        function toggleCoordinateTool() {
+            isCoordToolActive = !isCoordToolActive;
+            if (isCoordToolActive) {
+                isStreetViewActive = false; updateToolUI();
+                Swal.fire({ toast: true, position: 'top', icon: 'info', title: 'โหมดพิกัด: คลิกเพื่อคัดลอก', showConfirmButton: false, timer: 2000 });
+            } else { updateToolUI(); }
+        }
+
+        function updateToolUI() {
+            const btnStreet = document.getElementById('btn-streetview'); const btnCoord = document.getElementById('btn-coord'); const tooltip = document.getElementById('coord-tooltip');
+            btnStreet.classList.remove('street-active'); btnCoord.classList.remove('active');
+            tooltip.style.display = 'none'; map.getContainer().style.cursor = '';
+            
+            if (isStreetViewActive) {
+                btnStreet.classList.add('street-active'); map.getContainer().style.cursor = 'crosshair';
+                tooltip.style.display = 'block'; tooltip.style.color = '#ffc107'; 
+            } 
+            else if (isCoordToolActive) {
+                btnCoord.classList.add('active'); map.getContainer().style.cursor = 'crosshair';
+                tooltip.style.display = 'block'; tooltip.style.color = '#fff'; 
+            }
+        }
+
+        // 🔥 อัปเกรดระบบ Mouse Move ให้ตรวจจับ Project แบบ Real-time
+        map.on('mousemove', function(e) {
+            const tooltip = document.getElementById('coord-tooltip');
+            const x = e.originalEvent.clientX; const y = e.originalEvent.clientY;
+
+            // 1. ถ้าเปิดโหมด Tools (StreetView/Coord) ให้ทำงานตาม Tools ก่อน
+            if (isStreetViewActive) {
+                tooltip.innerHTML = '<i class="fa-solid fa-street-view"></i> ดู Street View';
+                tooltip.style.left = (x + 15) + 'px'; tooltip.style.top = (y + 15) + 'px';
+                map.getContainer().style.cursor = 'crosshair'; // ล็อกเป็นเป้าเล็งเสมอ
+                return; // จบการทำงาน ไม่ต้องเช็ค Hover โครงการ
+            } 
+            else if (isCoordToolActive) {
+                const lat = e.latlng.lat.toFixed(6); const lng = e.latlng.lng.toFixed(6);
+                tooltip.innerHTML = `Lat: ${lat}, Lng: ${lng}<br><small style="font-weight:normal">(คลิกเพื่อคัดลอก)</small>`;
+                tooltip.style.left = (x + 15) + 'px'; tooltip.style.top = (y + 15) + 'px';
+                map.getContainer().style.cursor = 'crosshair'; // ล็อกเป็นเป้าเล็งเสมอ
+                return; // จบการทำงาน ไม่ต้องเช็ค Hover โครงการ
+            }
+
+            // 2. 🔥 โหมดปกติ: เช็คว่าเมาส์ชี้อยู่บนโครงการหรือไม่ (Hover Detection)
+            let isHoveringProject = false;
+            const checkPoint = [e.latlng.lng, e.latlng.lat];
+
+            for (let i = 0; i < currentFilteredData.length; i++) {
+                const geom = currentFilteredData[i].geometry;
+                if (geom.type === 'Polygon') {
+                    if (isPointInPolygon(checkPoint, geom.coordinates[0])) { isHoveringProject = true; break; }
+                } 
+                else if (geom.type === 'MultiPolygon') {
+                    if (isPointInMultiPolygon(checkPoint, geom.coordinates)) { isHoveringProject = true; break; }
+                } 
+                else if (geom.type === 'Point') {
+                    const dist = map.distance(e.latlng, L.latLng(geom.coordinates[1], geom.coordinates[0]));
+                    if (dist < 15) { isHoveringProject = true; break; }
+                }
+            }
+
+            // เปลี่ยนหน้าตาเมาส์
+            if (isHoveringProject) {
+                map.getContainer().style.cursor = 'pointer'; // นิ้วชี้ (กดได้)
+            } else {
+                map.getContainer().style.cursor = ''; // ค่าเดิมของแผนที่ (มือจับ Grab)
+            }
+        });
+
+        // --- Map Click ---
+        map.on('click', function(e) {
+            if (isStreetViewActive) {
+                const lat = e.latlng.lat; const lng = e.latlng.lng;
+                const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`;
+                window.open(url, '_blank'); toggleStreetViewMode(); 
+                return;
+            }
+            if (isCoordToolActive) {
+                const text = `${e.latlng.lat.toFixed(6)}, ${e.latlng.lng.toFixed(6)}`;
+                navigator.clipboard.writeText(text).then(() => { Swal.fire({ toast: true, position: 'top', icon: 'success', title: 'คัดลอกพิกัดแล้ว!', showConfirmButton: false, timer: 1500 }); });
+                return;
+            }
+
+            const clickLat = e.latlng.lat; const clickLng = e.latlng.lng; const clickPoint = [clickLng, clickLat];
+            const foundProjects = [];
+            currentFilteredData.forEach(feature => {
+                const geom = feature.geometry;
+                if (geom.type === 'Polygon') { if (isPointInPolygon(clickPoint, geom.coordinates[0])) foundProjects.push(feature); } 
+                else if (geom.type === 'MultiPolygon') { if (isPointInMultiPolygon(clickPoint, geom.coordinates)) foundProjects.push(feature); }
+                else if (geom.type === 'Point') {
+                    const pLat = geom.coordinates[1]; const pLng = geom.coordinates[0];
+                    const dist = map.distance(e.latlng, L.latLng(pLat, pLng)); if (dist < 15) foundProjects.push(feature);
+                }
+            });
+
+            if (foundProjects.length > 0) { L.DomEvent.stopPropagation(e); openSidebar(foundProjects); }
+        });
+
+        // ==========================================
+        // Load Data & Sidebar (The rest remains identical)
+        // ==========================================
+        async function loadMap() {
+            const isFirstLoad = allFeatures.length === 0;
+            if (isFirstLoad) {
+                Swal.fire({ title: 'กำลังโหลด...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+                try {
+                    const { data, error } = await db.rpc('get_map_data'); if (error) throw error; allFeatures = data.features || [];
+                    const yearsSet = new Set();
+                    allFeatures.forEach(f => { if (f.properties.budget_history) { f.properties.budget_history.forEach(b => yearsSet.add(b.year)); } });
+                    const sortedYears = Array.from(yearsSet).sort(); const yearSelect = document.getElementById('yearFilter');
+                    sortedYears.forEach(y => { const option = document.createElement('option'); option.value = y; option.textContent = `พ.ศ. ${y}`; yearSelect.appendChild(option); });
+                } catch (err) { console.error('Error:', err); Swal.fire('Error', 'โหลดข้อมูลไม่สำเร็จ', 'error'); return; }
+            }
+
+            const selectedYear = document.getElementById('yearFilter').value; const selectedMoo = document.getElementById('mooFilter').value;
+            currentFilteredData = allFeatures.filter(feature => {
+                const p = feature.properties; const matchMoo = (selectedMoo === 'all') || (p.moo == selectedMoo); let matchYear = false;
+                if (selectedYear === 'all') matchYear = true; else if (p.budget_history && p.budget_history.length > 0) matchYear = p.budget_history.some(b => b.year == selectedYear);
+                return matchMoo && matchYear;
+            });
+
+            if (projectLayer) map.removeLayer(projectLayer);
+            if (currentFilteredData.length === 0) { if (isFirstLoad) Swal.close(); renderProjectList([]); return; }
+
+            projectLayer = L.geoJSON({ "type": "FeatureCollection", "features": currentFilteredData }, {
+                style: function(feature) { return { color: "#ffc107", weight: 2, fillOpacity: 0.4 }; },
+                pointToLayer: function (feature, latlng) { return L.marker(latlng, { icon: projectIcon }); },
+                interactive: false 
+            }).addTo(map);
+
+            renderProjectList(currentFilteredData);
+            if (isFirstLoad) Swal.close();
+        }
+
+        function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
+        function renderProjectList(features) {
+            const listContainer = document.getElementById('listContent'); listContainer.innerHTML = ''; 
+            if (features.length === 0) { listContainer.innerHTML = '<div class="text-center text-muted p-4">ไม่พบโครงการ</div>'; return; }
+
+            features.forEach((feature, index) => {
+                const p = feature.properties; let totalBudget = 0;
+                if(p.budget_history && p.budget_history.length > 0) { totalBudget = p.budget_history.reduce((sum, item) => sum + item.amount, 0); }
+                const formattedBudget = totalBudget > 0 ? new Intl.NumberFormat('th-TH').format(totalBudget) + ' บ.' : '-';
+
+                const item = document.createElement('div'); item.className = 'list-group-item project-list-item p-3';
+                item.onclick = () => jumpToProject(feature); 
+                item.innerHTML = `<div class="d-flex justify-content-between align-items-start"><h6 class="mb-1 text-primary fw-bold text-truncate" style="max-width: 200px;">${p.name}</h6><small class="badge bg-light text-dark border">${formattedBudget}</small></div><div class="d-flex justify-content-between mt-1"><small class="text-muted"><i class="fa-solid fa-map-pin"></i> หมู่ ${p.moo}</small><small class="text-muted text-truncate" style="max-width: 120px;">${p.dept}</small></div>`;
+                listContainer.appendChild(item);
+            });
+        }
+        function filterProjectList(keyword) {
+            const lowerKeyword = keyword.toLowerCase();
+            const filtered = currentFilteredData.filter(f => f.properties.name.toLowerCase().includes(lowerKeyword));
+            renderProjectList(filtered);
+        }
+        function jumpToProject(feature) {
+            let center;
+            if (feature.geometry.type === 'Point') { center = [feature.geometry.coordinates[1], feature.geometry.coordinates[0]]; } 
+            else { const layer = L.geoJSON(feature); center = layer.getBounds().getCenter(); }
+            map.flyTo(center, 18, { duration: 1.5 }); openSidebar([feature]); 
+        }
+        function toggleLayerCard() { document.getElementById('layerCard').classList.toggle('hidden'); }
+
+        function openDashboardModal() {
+            const budgetStats = {}; const mooBudgetStats = {}; let totalBudget = 0;
+            const selectedYear = document.getElementById('yearFilter').value;
+
+            currentFilteredData.forEach(f => {
+                const p = f.properties; const mooName = `หมู่ ${p.moo}`;
+                if (!mooBudgetStats[mooName]) mooBudgetStats[mooName] = 0;
+                if (p.budget_history) {
+                    p.budget_history.forEach(b => {
+                        if (selectedYear !== 'all' && b.year.toString() !== selectedYear) return;
+                        budgetStats[b.year] = (budgetStats[b.year] || 0) + b.amount;
+                        mooBudgetStats[mooName] += b.amount; totalBudget += b.amount;
+                    });
+                }
+            });
+
+            document.getElementById('stat-count').innerText = currentFilteredData.length;
+            document.getElementById('stat-budget').innerText = new Intl.NumberFormat('th-TH').format(totalBudget);
+            const myModal = new bootstrap.Modal(document.getElementById('dashboardModal')); myModal.show();
+            setTimeout(() => { renderCharts(budgetStats, mooBudgetStats); }, 300);
+        }
+
+        function renderCharts(budgetStats, mooBudgetStats) {
+            if (budgetChartInstance) budgetChartInstance.destroy(); if (mooChartInstance) mooChartInstance.destroy();
+            const sortedYears = Object.keys(budgetStats).sort(); const budgetData = sortedYears.map(y => budgetStats[y]);
+            const ctxBudget = document.getElementById('budgetChart').getContext('2d');
+            budgetChartInstance = new Chart(ctxBudget, { type: 'bar', data: { labels: sortedYears, datasets: [{ label: 'งบประมาณ (บาท)', data: budgetData, backgroundColor: '#198754', borderRadius: 5 }] }, options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { callback: function(value) { return value.toLocaleString() + ' บ.'; } } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.parsed.y.toLocaleString()} บาท` } } } } });
+
+            const mooLabels = Object.keys(mooBudgetStats).sort(); const mooData = mooLabels.map(m => mooBudgetStats[m]);
+            const colors = ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'];
+            const ctxMoo = document.getElementById('mooChart').getContext('2d');
+            mooChartInstance = new Chart(ctxMoo, { type: 'doughnut', data: { labels: mooLabels, datasets: [{ data: mooData, backgroundColor: colors.slice(0, mooLabels.length) }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: function(context) { let label = context.label || ''; if (label) { label += ': '; } let value = context.raw || 0; return label + value.toLocaleString() + ' บาท'; } } } } } });
+        }
+
+        function openSidebar(features) { if (features.length > 1) { showStackList(features); } else if (features.length === 1) { renderDetail(features[0].properties); } }
+        function showStackList(features) {
+            currentStack = features; const content = document.getElementById('sidebarContent');
+            let listHtml = `<h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-layer-group text-primary"></i> พบ ${features.length} โครงการ</h5><div class="list-group">`;
+            features.forEach((f, index) => {
+                const p = f.properties; let lastYear = (p.budget_history && p.budget_history.length > 0) ? p.budget_history[p.budget_history.length-1].year : '-';
+                listHtml += `<button onclick="openDetailFromStack(${index})" class="list-group-item list-group-item-action p-3 mb-2 border rounded shadow-sm text-start"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 fw-bold text-primary text-truncate" style="max-width: 200px;">${p.name}</h6><small class="text-muted"><i class="fa-solid fa-calendar"></i> ${lastYear}</small></div><small class="text-muted"><i class="fa-solid fa-building"></i> ${p.dept}</small></button>`;
+            });
+            listHtml += `</div>`; content.innerHTML = listHtml; document.getElementById('projectSidebar').classList.add('active');
+        }
+        function renderDetail(props) {
+            const content = document.getElementById('sidebarContent'); let budgetHtml = '';
+            if (props.budget_history && props.budget_history.length > 0) {
+                props.budget_history.forEach(b => { const money = new Intl.NumberFormat('th-TH').format(b.amount); budgetHtml += `<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded bg-white"><span class="badge bg-primary">ปี ${b.year}</span><span class="fw-bold text-dark">${money} บาท</span></div>`; });
+            } else { budgetHtml = `<div class="text-center text-muted p-3">ยังไม่มีข้อมูลงบประมาณ</div>`; }
+            let backBtn = ''; if (currentStack.length > 1) { backBtn = `<button onclick="showStackList(currentStack)" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารายการ</button>`; }
+            content.innerHTML = `${backBtn}<h4 class="fw-bold text-primary mb-4" style="line-height:1.4;">${props.name}</h4><div class="info-row"><div class="info-label">พื้นที่</div><div class="info-value">หมู่ที่ ${props.moo}</div></div><div class="info-row"><div class="info-label">หน่วยงาน</div><div class="info-value">${props.dept}</div></div><div class="info-row"><div class="info-label">ระยะเวลา</div><div class="info-value">${props.start_date_thai} - ${props.end_date_thai}</div></div><h6 class="fw-bold mt-4 mb-3 text-secondary">ประวัติงบประมาณ</h6><div class="bg-light p-2 rounded">${budgetHtml}</div>`;
+            document.getElementById('projectSidebar').classList.add('active');
+        }
+        function openDetailFromStack(index) { renderDetail(currentStack[index].properties); }
+        function closeSidebar(sidebarId) { document.getElementById(sidebarId).classList.remove('active'); if(sidebarId === 'projectSidebar') currentStack = []; }
+
+        async function loadMoo() {
+            try { const { data, error } = await db.rpc('get_moo_boundary'); if (error) throw error; mooLayer = L.geoJSON(data, { interactive: false, style: { color: "#1976d2", weight: 2, opacity: 0.8, fillColor: "#bbdefb", fillOpacity: 0.1, dashArray: '5, 5' }, onEachFeature: function (feature, layer) { if (feature.properties.moo_no) { layer.bindTooltip(`หมู่ ${feature.properties.moo_no}<br>${feature.properties.moo_name || ''}`, { permanent: true, direction: "center", className: "moo-label" }); } } }).addTo(map);
+            } catch (err) { console.error('Error loading Moo:', err); }
+        }
+        async function loadBoundary() {
+            try { const { data, error } = await db.rpc('get_tambon_boundary'); if (error) throw error; boundaryLayer = L.geoJSON(data, { interactive: false, style: { color: "#d32f2f", weight: 4, fillOpacity: 0, dashArray: '10, 5' } }).addTo(map); map.fitBounds(boundaryLayer.getBounds());
+            } catch (err) { console.error('Error loading Boundary:', err); }
+        }
+        function setMapType(type) {
+            map.removeLayer(streetMap); map.removeLayer(satelliteMap);
+            document.getElementById('btn-street').classList.remove('active'); document.getElementById('btn-satellite').classList.remove('active');
+            if (type === 'street') { map.addLayer(streetMap); document.getElementById('btn-street').classList.add('active'); } else { map.addLayer(satelliteMap); document.getElementById('btn-satellite').classList.add('active'); }
+        }
+        function toggleLayer(type, element) {
+            var targetLayer; if (type === 'project') targetLayer = projectLayer; if (type === 'moo') targetLayer = mooLayer; if (type === 'boundary') targetLayer = boundaryLayer;
+            if (targetLayer) { var icon = element.querySelector('.eye-icon'); if (map.hasLayer(targetLayer)) { map.removeLayer(targetLayer); icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash', 'disabled'); } else { map.addLayer(targetLayer); icon.classList.remove('fa-eye-slash', 'disabled'); icon.classList.add('fa-eye'); } }
+        }
+    </script>
+</body>
+</html>
