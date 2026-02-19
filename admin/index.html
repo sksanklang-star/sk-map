@@ -392,6 +392,13 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
+        .eraser-cursor,
+        .eraser-cursor .leaflet-interactive,
+        .eraser-cursor path,
+        .eraser-cursor .custom-marker-icon {
+            /* ใช้ SVG รูปถังขยะของ Bootstrap ผ่าน URL-Encoding */
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' fill='%23dc3545' viewBox='0 0 16 16'%3E%3Cpath d='M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z'/%3E%3Cpath d='M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z'/%3E%3C/svg%3E") 12 12, crosshair !important;
+        }
     </style>
 </head>
 
@@ -581,6 +588,8 @@
                                     <option value="3">3</option>
                                     <option value="4">4</option>
                                     <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
                                 </select></div>
                             <div class="col-6"><label>หน่วยงาน</label><input type="text" id="inpDept"
                                     class="form-control" value="กองช่าง" required></div>
@@ -690,6 +699,12 @@
 
             map.on('pm:drawstart', () => { isManualMode = true; });
             map.on('pm:drawend', () => { setTimeout(() => { isManualMode = false; }, 200); });
+
+            map.on('pm:globaldrawmodetoggled', (e) => {
+            if (e.enabled) {
+                resetEraserTool();
+            }
+        });
 
             map.on('pm:create', (e) => {
                 const layer = e.layer;
@@ -1266,6 +1281,7 @@
         }
 
         function toggleEraserMode(btn) {
+            map.pm.disableDraw();
             // สลับสถานะ
             isEraserActive = !isEraserActive;
             
