@@ -168,6 +168,7 @@
             <div class="layer-item" onclick="toggleLayer('project', this)"><span class="small fw-bold"><i class="fa-solid fa-circle text-warning me-2"></i> โครงการ</span><i class="fa-solid fa-eye text-primary"></i></div>
             <div class="layer-item" onclick="toggleLayer('soi', this)"><span class="small fw-bold"><i class="fa-solid fa-road text-secondary me-2"></i> ซอย (Soi)</span><i class="fa-solid fa-eye-slash text-muted"></i></div>
             <div class="layer-item" onclick="toggleLayer('moo', this)"><span class="small fw-bold"><i class="fa-regular fa-square text-primary me-2"></i> ขอบเขตหมู่</span><i class="fa-solid fa-eye text-primary"></i></div>
+            <div class="layer-item" onclick="toggleLayer('boundary', this)"><span class="small fw-bold"><i class="fa-regular fa-square text-danger me-2"></i> ขอบเขตตำบล</span><i class="fa-solid fa-eye text-primary"></i></div>
         </div>
     </div>
 
@@ -232,10 +233,15 @@
         }
 
         async function loadData() {
-            // Load boundaries and soi
+            // Load Moo Boundary
             const { data: mooData } = await db.rpc('get_moo_boundary');
             if (mooData) mooLayer = L.geoJSON(mooData, { style: { color: "#1976d2", fillOpacity: 0.1, dashArray: '5,5' } }).addTo(map);
 
+            // Load Tambon Boundary (Sanklang Boundary)
+            const { data: boundData } = await db.rpc('get_tambon_boundary');
+            if (boundData) boundaryLayer = L.geoJSON(boundData, { interactive: false, style: { color: "#d32f2f", fill: false, dashArray: '10,5' } }).addTo(map);
+
+            // Load Soi (Default hidden)
             const { data: soiData } = await db.rpc('get_sanklang_soi_final');
             if (soiData) soiLayer = L.geoJSON(soiData, { style: { color: "#6c757d", weight: 2, opacity: 0.6 } });
 
@@ -293,8 +299,10 @@
                 div.innerHTML = `<div class="fw-bold text-primary">${f.properties.name || f.properties.project}</div><small class="text-muted">หมู่ ${f.properties.moo} | ${f.properties.authority || f.properties.dept}</small>`;
                 div.onclick = () => {
                     renderDetail(f.properties);
-                    const coords = f.geometry.type === 'Point' ? f.geometry.coordinates : f.geometry.coordinates[0];
-                    map.flyTo([coords[1], coords[0]], 17);
+                    const target = projectLayerGroup.getLayers().find(l => (l.feature.properties.fid || l.feature.properties.id) == (f.properties.fid || f.properties.id));
+                    if (target) {
+                        if (target.getBounds) map.flyTo(target.getBounds().getCenter(), 18); else map.flyTo(target.getLatLng(), 18);
+                    }
                 };
                 box.appendChild(div);
             });
@@ -315,10 +323,20 @@
         }
 
         function toggleLayer(type, el) {
-            let target = (type === 'project') ? projectLayerGroup : (type === 'moo') ? mooLayer : soiLayer;
+            let target;
+            if (type === 'project') target = projectLayerGroup;
+            else if (type === 'moo') target = mooLayer;
+            else if (type === 'boundary') target = boundaryLayer;
+            else if (type === 'soi') target = soiLayer;
+
             let icon = el.querySelector('i:last-child');
-            if (map.hasLayer(target)) { map.removeLayer(target); icon.className = 'fa-solid fa-eye-slash text-muted'; } 
-            else { map.addLayer(target); icon.className = 'fa-solid fa-eye text-primary'; }
+            if (map.hasLayer(target)) { 
+                map.removeLayer(target); 
+                icon.className = 'fa-solid fa-eye-slash text-muted'; 
+            } else { 
+                map.addLayer(target); 
+                icon.className = 'fa-solid fa-eye text-primary'; 
+            }
         }
 
         function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
