@@ -26,6 +26,37 @@
         .bi {
             font-family: "bootstrap-icons" !important;
         }
+
+        /* CSS for Loading Overlay */
+        #dataLoadingOverlay {
+            position: fixed;
+            top: 60px; /* Below navbar */
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            background: rgba(255, 255, 255, 0.8); /* Semi-transparent white */
+            z-index: 9998; /* High z-index but below login overlay */
+            display: none; /* Hidden by default */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: #0d6efd; /* Bootstrap primary color */
+            margin-bottom: 15px;
+        }
+
+        .loading-text {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+
         #iconInputNew {
             font-family: "Bootstrap Icons";
         }
@@ -407,9 +438,21 @@
     <div id="loginOverlay">
         <div class="login-card">
             <h3 class="fw-bold mb-1 text-dark">ผู้ดูแลระบบ</h3>
+            
+            <div id="loginError" class="alert alert-danger d-none p-2 mb-3 mt-3 text-start small" role="alert">
+                <i class="fa-solid fa-circle-exclamation"></i> <span id="errorText">อีเมลหรือรหัสผ่านไม่ถูกต้อง</span>
+            </div>
+
             <form id="loginForm" onsubmit="handleLogin(event)">
-                <input type="email" id="authEmail" class="form-control mb-3" placeholder="admin@example.com" required>
-                <input type="password" id="authPassword" class="form-control mb-4" placeholder="••••••••" required>
+                <input type="email" id="authEmail" class="form-control mb-3 mt-3" placeholder="admin@example.com" required>
+                
+                <div class="input-group mb-4">
+                    <input type="password" id="authPassword" class="form-control" placeholder="password" required>
+                    <button class="btn btn-outline-secondary" style="min-width: 46px;" type="button" id="btnTogglePassword" onclick="togglePasswordVisibility()">
+                        <i class="fa-solid fa-eye"  id="eyeIcon"></i>
+                    </button>
+                </div>
+
                 <button type="submit" id="loginBtn" class="btn btn-dark w-100 fw-bold py-2">เข้าสู่ระบบ</button>
             </form>
         </div>
@@ -432,6 +475,11 @@
     </nav>
 
     <div id="map"></div>
+
+    <div id="dataLoadingOverlay">
+        <div class="spinner-border" role="status"></div>
+        <div class="loading-text">กำลังดาวน์โหลดข้อมูลแผนที่...</div>
+    </div>
 
     <div id="newProjectActions" class="float-controls">
         <span class="control-label">ใหม่ (<span id="drawCount">0</span>)</span>
@@ -667,8 +715,79 @@
         }
         makeDraggable(document.getElementById("filterPanel")); makeDraggable(document.getElementById("layerPanel"));
 
-        async function checkSession() { const { data: { session } } = await db.auth.getSession(); if (session) { document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.visibility = 'hidden'; initAdminTools(); loadExistingProjects(); loadMoo(); loadBoundary(); loadSoi(); }, 500); } }
-        async function handleLogin(e) { e.preventDefault(); const { error } = await db.auth.signInWithPassword({ email: document.getElementById('authEmail').value, password: document.getElementById('authPassword').value }); if (error) Swal.fire('Error', error.message, 'error'); else checkSession(); }
+        // this is function that loading data and show reload while fetching data
+        async function checkSession() { 
+            const { data: { session } } = await db.auth.getSession(); 
+            
+            if (session) { 
+                // 1. Hide Login Overlay
+                document.getElementById('loginOverlay').style.opacity = '0'; 
+                
+                setTimeout(async () => { 
+                    document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                    initAdminTools(); 
+                    
+                    // 2. SHOW Loading Overlay
+                    document.getElementById('dataLoadingOverlay').style.display = 'flex';
+
+                    try {
+                        // 3. Run all data fetching AT THE SAME TIME using Promise.all
+                        // This makes loading much faster than waiting for one to finish before starting the next.
+                        await Promise.all([
+                            loadExistingProjects(),
+                            loadMoo(),
+                            loadBoundary(),
+                            loadSoi()
+                        ]);
+                    } catch (error) {
+                        console.error("Error loading map data:", error);
+                        // Optional: Show an error message to the user here
+                    } finally {
+                        // 4. HIDE Loading Overlay when everything is done (or if an error occurs)
+                        document.getElementById('dataLoadingOverlay').style.display = 'none';
+                    }
+
+                }, 500); 
+            } 
+        }
+        
+
+        async function handleLogin(e) { 
+            e.preventDefault(); 
+            
+            const btn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('loginError');
+            const errorText = document.getElementById('errorText');
+
+            // 1. ซ่อนกล่อง Error เก่า (ถ้ามี) และเปลี่ยนปุ่มเป็นสถานะกำลังโหลด
+            errorDiv.classList.add('d-none');
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<span> verifying . . .  </span>';
+            btn.disabled = true;
+
+            // 2. ส่งข้อมูลไปเช็คกับ Supabase
+            const { error } = await db.auth.signInWithPassword({ 
+                email: document.getElementById('authEmail').value, 
+                password: document.getElementById('authPassword').value 
+            }); 
+            
+            // 3. ตรวจสอบผลลัพธ์
+            if (error) { 
+                // ถ้ารหัสผิด: แสดงกล่องแดง และคืนค่าปุ่มกลับมาให้กดใหม่ได้
+                if (error.message.includes('Invalid login credentials')) {
+                    errorText.innerText = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
+                } else {
+                    errorText.innerText = 'เกิดข้อผิดพลาด: ' + error.message;
+                }
+                errorDiv.classList.remove('d-none');
+                
+                btn.innerHTML = originalBtnText;
+                btn.disabled = false;
+            } else { 
+                // ถ้าถูก: ไปต่อ (ฟังก์ชัน checkSession จะซ่อน Overlay ให้เอง)
+                checkSession(); 
+            } 
+        }
         async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
         function setMapType(type) { if (type === 'street') { map.addLayer(streetMap); map.removeLayer(satelliteMap); } else { map.addLayer(satelliteMap); map.removeLayer(streetMap); } document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + type).classList.add('active'); }
 
@@ -1649,6 +1768,23 @@
         document.addEventListener('DOMContentLoaded', checkSession);
         document.getElementById("iconInputNew").value = "&#xF3E7;";
         
+        // ฟังก์ชันสำหรับเปิด-ปิดการมองเห็นรหัสผ่าน
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('authPassword');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            // ถ้าปัจจุบันเป็นพาสเวิร์ด (ซ่อนอยู่) ให้เปลี่ยนเป็น text (แสดง)
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash'); // เปลี่ยนไอคอนเป็นรูปตาโดนขีดทับ
+            } else {
+                // ถ้าแสดงอยู่ ให้ซ่อนกลับไปเหมือนเดิม
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye'); // เปลี่ยนไอคอนกลับเป็นรูปตาปกติ
+            }
+        }
     </script>
 </body>
 
