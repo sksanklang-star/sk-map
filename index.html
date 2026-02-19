@@ -4,13 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบข้อมูลโครงการ (Client Portal)</title>
+    <title>ระบบข้อมูลโครงการ (Private Client)</title>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
@@ -26,6 +25,61 @@
             height: 100vh;
         }
 
+        /* --- ระบบ Login --- */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: #212529;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        /* --- ระบบ Loading --- */
+        #dataLoadingOverlay {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(2px);
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: #0d6efd;
+            margin-bottom: 15px;
+        }
+
+        .loading-text {
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        /* --- Navbar & Map --- */
         .top-navbar {
             height: 60px;
             background: white;
@@ -69,9 +123,21 @@
 
         .nav-btn:hover { background: #f8f9fa; }
         .nav-btn.active { background: #e7f1ff; color: #0d6efd; border-color: #0d6efd; font-weight: bold; }
+        
+        .nav-btn-danger { color: #dc3545; border-color: #ffeaea; }
+        .nav-btn-danger:hover { background: #dc3545; color: white; }
+
+        .custom-marker-icon {
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 50%; color: white; font-size: 16px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;
+            font-family: 'bootstrap-icons' !important; 
+            font-style: normal;
+        }
 
         #map { flex-grow: 1; width: 100%; z-index: 1; }
 
+        /* --- Panels & Sidebars --- */
         .draggable-panel {
             position: absolute;
             width: 300px;
@@ -104,32 +170,53 @@
             height: calc(100vh - 60px);
             background: white;
             z-index: 1025;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.15);
             transition: all 0.4s;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 25px rgba(0, 0, 0, 0.15);
         }
 
         .list-sidebar { left: -400px; }
         .list-sidebar.active { left: 0; }
-        .selection-sidebar { right: -400px; }
+        
+        .selection-sidebar { right: -400px; box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15); }
         .selection-sidebar.active { right: 0; }
 
-        .custom-marker-icon {
-            display: flex; align-items: center; justify-content: center; 
-            border-radius: 50%; color: white; font-size: 16px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;
-            font-family: 'bootstrap-icons' !important; 
+        .layer-item {
+            display: flex; justify-content: space-between; padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0; cursor: pointer;
         }
 
         .result-item { cursor: pointer; padding: 15px; border-bottom: 1px solid #f0f0f0; }
         .result-item:hover { background: #f8f9fa; border-left: 4px solid #0d6efd; }
-        
-        .layer-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
     </style>
 </head>
 
 <body>
+
+    <div id="loginOverlay">
+        <div class="login-card">
+            <h3 class="fw-bold mb-1 text-dark">เข้าสู่ระบบ</h3>
+            <p class="text-muted small mb-3">ดูข้อมูลโครงการ</p>
+            
+            <div id="loginError" class="alert alert-danger d-none p-2 mb-3 mt-3 text-start small" role="alert">
+                <i class="fa-solid fa-circle-exclamation"></i> <span id="errorText">อีเมลหรือรหัสผ่านไม่ถูกต้อง</span>
+            </div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <input type="email" id="authEmail" class="form-control mb-3 mt-3" placeholder="client@example.com" required>
+                
+                <div class="input-group mb-4">
+                    <input type="password" id="authPassword" class="form-control" placeholder="password" required>
+                    <button class="btn btn-outline-secondary" style="min-width: 46px;" type="button" id="btnTogglePassword" onclick="togglePasswordVisibility()">
+                        <i class="fa-solid fa-eye" id="eyeIcon"></i>
+                    </button>
+                </div>
+
+                <button type="submit" id="loginBtn" class="btn btn-primary w-100 fw-bold py-2">เข้าสู่ระบบ</button>
+            </form>
+        </div>
+    </div>
 
     <nav class="top-navbar">
         <div class="nav-brand"><i class="fa-solid fa-map-location-dot"></i> ระบบข้อมูลโครงการ</div>
@@ -139,10 +226,17 @@
             <div class="vr mx-2"></div>
             <button class="nav-btn active" id="btn-street" onclick="setMapType('street')">แผนที่</button>
             <button class="nav-btn" id="btn-satellite" onclick="setMapType('satellite')">ดาวเทียม</button>
+            <div class="vr mx-2"></div>
+            <button class="nav-btn nav-btn-danger" onclick="handleLogout()"><i class="fa-solid fa-power-off"></i> ออก</button>
         </div>
     </nav>
 
     <div id="map"></div>
+
+    <div id="dataLoadingOverlay">
+        <div class="spinner-border" role="status"></div>
+        <div class="loading-text">กำลังดาวน์โหลดข้อมูลแผนที่...</div>
+    </div>
 
     <div id="filterPanel" class="draggable-panel" style="top: 80px; left: 20px;">
         <div class="panel-header">
@@ -150,12 +244,24 @@
             <i class="fa-solid fa-xmark" style="cursor:pointer" onclick="togglePanel('filterPanel', 'btn-filter')"></i>
         </div>
         <div class="panel-body">
-            <div class="mb-2"><select id="filterYear" class="form-select form-select-sm" onchange="applyFilters()"><option value="all">-- ทุกปีงบประมาณ --</option></select></div>
-            <div class="mb-3"><select id="filterMoo" class="form-select form-select-sm" onchange="applyFilters()">
-                <option value="all">-- ทุกหมู่บ้าน --</option>
-                <option value="1">หมู่ 1</option><option value="2">หมู่ 2</option><option value="3">หมู่ 3</option><option value="4">หมู่ 4</option><option value="5">หมู่ 5</option>
-            </select></div>
-            <button onclick="toggleListSidebar()" class="btn btn-primary w-100 rounded-pill fw-bold btn-sm"><i class="fa-solid fa-list-ul"></i> รายชื่อโครงการ</button>
+            <div class="mb-2">
+                <select id="filterYear" class="form-select form-select-sm" onchange="applyFilters()">
+                    <option value="all">-- ทุกปีงบประมาณ --</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <select id="filterMoo" class="form-select form-select-sm" onchange="applyFilters()">
+                    <option value="all">-- ทุกหมู่บ้าน --</option>
+                    <option value="1">หมู่ 1</option>
+                    <option value="2">หมู่ 2</option>
+                    <option value="3">หมู่ 3</option>
+                    <option value="4">หมู่ 4</option>
+                    <option value="5">หมู่ 5</option>
+                </select>
+            </div>
+            <button onclick="toggleListSidebar()" class="btn btn-primary w-100 rounded-pill fw-bold btn-sm">
+                <i class="fa-solid fa-list-ul"></i> เปิดรายชื่อ / ค้นหา
+            </button>
         </div>
     </div>
 
@@ -166,7 +272,7 @@
         </div>
         <div class="panel-body">
             <div class="layer-item" onclick="toggleLayer('project', this)"><span class="small fw-bold"><i class="fa-solid fa-circle text-warning me-2"></i> โครงการ</span><i class="fa-solid fa-eye text-primary"></i></div>
-            <div class="layer-item" onclick="toggleLayer('soi', this)"><span class="small fw-bold"><i class="fa-solid fa-road text-secondary me-2"></i> ซอย (Soi)</span><i class="fa-solid fa-eye-slash text-muted"></i></div>
+            <div class="layer-item" onclick="toggleLayer('soi', this)"><span class="small fw-bold"><i class="fa-solid fa-road text-secondary me-2"></i> ซอย (Soi)</span><i class="fa-solid fa-eye-slash text-muted eye-icon"></i></div>
             <div class="layer-item" onclick="toggleLayer('moo', this)"><span class="small fw-bold"><i class="fa-regular fa-square text-primary me-2"></i> ขอบเขตหมู่</span><i class="fa-solid fa-eye text-primary"></i></div>
             <div class="layer-item" onclick="toggleLayer('boundary', this)"><span class="small fw-bold"><i class="fa-regular fa-square text-danger me-2"></i> ขอบเขตตำบล</span><i class="fa-solid fa-eye text-primary"></i></div>
         </div>
@@ -174,20 +280,20 @@
 
     <div id="listSidebar" class="list-sidebar">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
-            <h5 class="mb-0 fw-bold">รายชื่อโครงการ</h5>
-            <button class="btn btn-sm btn-close" onclick="toggleListSidebar()"></button>
+            <h5 class="mb-0 fw-bold"><i class="fa-solid fa-list me-2"></i>รายชื่อโครงการ</h5>
+            <button class="btn btn-mb btn-outline-secondary rounded-circle" onclick="toggleListSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div class="p-3 bg-light border-bottom">
             <input type="text" id="sidebarSearch" class="form-control rounded-pill" placeholder="🔍 ค้นหาโครงการ..." onkeyup="applyFilters()">
-            <div class="text-end mt-1"><small class="text-muted" id="resultCount"></small></div>
+            <div class="text-end mt-1"><small class="text-muted" id="resultCount">แสดงทั้งหมด</small></div>
         </div>
         <div id="sidebarList" class="list-group list-group-flush" style="overflow-y:auto; flex-grow:1;"></div>
     </div>
 
     <div id="selectionSidebar" class="selection-sidebar">
         <div class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light">
-            <h5 class="mb-0 fw-bold text-primary"><i class="fa-solid fa-circle-info me-2"></i>รายละเอียด</h5>
-            <button class="btn btn-sm btn-close" onclick="closeSidebar()"></button>
+            <h5 class="mb-0 fw-bold text-primary"><i class="fa-solid fa-circle-info me-2"></i>ข้อมูล</h5>
+            <button class="btn btn-mb btn-outline-secondary rounded-circle" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div id="sidebarContent" class="p-3" style="overflow-y:auto; flex-grow:1;"></div>
     </div>
@@ -200,22 +306,122 @@
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk';
         const db = supabase.createClient(supabaseUrl, supabaseKey);
 
-        var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false });
-        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
-        var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
+        var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false, maxZoom: 22 });
+        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+            attribution: '© OpenStreetMap', maxNativeZoom: 19, maxZoom: 22 
+        }).addTo(map);        
+        
+        var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+            attribution: 'Tiles © Esri', maxNativeZoom: 19, maxZoom: 22 
+        });        
         L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        map.createPane('soiPane');
+        map.getPane('soiPane').style.zIndex = 450;
 
         let projectLayerGroup = L.featureGroup().addTo(map);
         let mooLayer, boundaryLayer, soiLayer;
         let allFeatures = [];
         let filteredFeaturesGlobal = [];
+        let currentStack = [];
 
+        // ==========================================
+        // ระบบ Login และ Session
+        // ==========================================
+        async function checkSession() { 
+            const { data: { session } } = await db.auth.getSession(); 
+            
+            if (session) { 
+                // 1. ซ่อนหน้า Login
+                document.getElementById('loginOverlay').style.opacity = '0'; 
+                
+                setTimeout(async () => { 
+                    document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                    
+                    // 2. เรียกโหลดข้อมูลแผนที่ (เริ่มทำงานเฉพาะตอนล็อกอินผ่าน)
+                    initApp();
+                }, 500); 
+            } else {
+                // ถ้าไม่มี Session ให้แสดงหน้า Login ปกติ
+                document.getElementById('loginOverlay').style.opacity = '1';
+                document.getElementById('loginOverlay').style.visibility = 'visible';
+            }
+        }
+
+        async function handleLogin(e) { 
+            e.preventDefault(); 
+            
+            const btn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('loginError');
+            const errorText = document.getElementById('errorText');
+
+            errorDiv.classList.add('d-none');
+            const originalBtnText = btn.innerHTML;
+            btn.innerHTML = '<span> verifying . . .  </span>';
+            btn.disabled = true;
+
+            const { error } = await db.auth.signInWithPassword({ 
+                email: document.getElementById('authEmail').value, 
+                password: document.getElementById('authPassword').value 
+            }); 
+            
+            if (error) { 
+                if (error.message.includes('Invalid login credentials')) {
+                    errorText.innerText = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
+                } else {
+                    errorText.innerText = 'เกิดข้อผิดพลาด: ' + error.message;
+                }
+                errorDiv.classList.remove('d-none');
+                btn.innerHTML = originalBtnText;
+                btn.disabled = false;
+            } else { 
+                checkSession(); 
+            } 
+        }
+
+        async function handleLogout() { 
+            await db.auth.signOut(); 
+            window.location.reload(); 
+        }
+
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('authPassword');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
+        // ==========================================
+        // UI & Panel Actions
+        // ==========================================
         function togglePanel(id, btnId) { 
             const p = document.getElementById(id); 
             const b = document.getElementById(btnId); 
             p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'block' : 'none'; 
             if (b) b.classList.toggle('active'); 
         }
+
+        function preventMapClick(id) { 
+            const el = document.getElementById(id); 
+            if (el) { L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el); } 
+        }
+        preventMapClick('filterPanel'); preventMapClick('layerPanel'); preventMapClick('listSidebar'); preventMapClick('selectionSidebar');
+
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; 
+            element.querySelector('.panel-header').onmousedown = e => { e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDrag; document.onmousemove = elmDrag; };
+            function elmDrag(e) { e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; element.style.top = (element.offsetTop - pos2) + "px"; element.style.left = (element.offsetLeft - pos1) + "px"; }
+            function closeDrag() { document.onmouseup = null; document.onmousemove = null; }
+        }
+        makeDraggable(document.getElementById("filterPanel")); makeDraggable(document.getElementById("layerPanel"));
 
         function setMapType(type) { 
             if (type === 'street') { map.addLayer(streetMap); map.removeLayer(satelliteMap); } 
@@ -225,124 +431,247 @@
         }
 
         function getCustomIcon(code, color) {
+            if (!code || code === 'default') code = '&#xF3E7;';
+            if (!color) color = '#ffc107'; 
             return L.divIcon({
                 className: 'custom-div-icon',
-                html: `<div class="custom-marker-icon" style="width:30px;height:30px; background:${color || '#ffc107'};">${code || '&#xF3E7;'}</div>`,
+                html: `<div class="custom-marker-icon" style="width:30px;height:30px; background:${color};">${code}</div>`,
                 iconSize: [30, 30], iconAnchor: [15, 15]
             });
         }
 
-        async function loadData() {
-            // Load Moo Boundary
-            const { data: mooData } = await db.rpc('get_moo_boundary');
-            if (mooData) mooLayer = L.geoJSON(mooData, { style: { color: "#1976d2", fillOpacity: 0.1, dashArray: '5,5' } }).addTo(map);
+        // ==========================================
+        // โหลดข้อมูลแผนที่ (ทำงานหลัง Login)
+        // ==========================================
+        async function initApp() {
+            document.getElementById('dataLoadingOverlay').style.display = 'flex';
+            try {
+                await Promise.all([
+                    loadExistingProjects(),
+                    loadMoo(),
+                    loadBoundary(),
+                    loadSoi()
+                ]);
+            } catch (error) {
+                console.error("Error loading map data:", error);
+            } finally {
+                document.getElementById('dataLoadingOverlay').style.display = 'none';
+            }
+        }
 
-            // Load Tambon Boundary (Sanklang Boundary)
-            const { data: boundData } = await db.rpc('get_tambon_boundary');
-            if (boundData) boundaryLayer = L.geoJSON(boundData, { interactive: false, style: { color: "#d32f2f", fill: false, dashArray: '10,5' } }).addTo(map);
-
-            // Load Soi (Default hidden)
-            const { data: soiData } = await db.rpc('get_sanklang_soi_final');
-            if (soiData) soiLayer = L.geoJSON(soiData, { style: { color: "#6c757d", weight: 2, opacity: 0.6 } });
-
-            // Load main projects
-            const { data: projData } = await db.rpc('get_map_data');
-            if (projData && projData.features) {
-                allFeatures = projData.features;
-                updateYearFilter(allFeatures);
+        async function loadExistingProjects() {
+            projectLayerGroup.clearLayers(); 
+            const { data } = await db.rpc('get_map_data');
+            if (data && data.features) {
+                allFeatures = data.features; 
+                const yearsSet = new Set();
+                allFeatures.forEach(f => { if (f.properties.budget_history) f.properties.budget_history.forEach(b => yearsSet.add(b.year)); });
+                const sortedYears = Array.from(yearsSet).sort(); 
+                const yearSelect = document.getElementById('filterYear');
+                yearSelect.innerHTML = '<option value="all">-- ทุกปีงบประมาณ --</option>'; 
+                sortedYears.forEach(y => { const option = document.createElement('option'); option.value = y; option.textContent = `พ.ศ. ${y}`; yearSelect.appendChild(option); });
                 applyFilters();
             }
         }
 
-        function updateYearFilter(features) {
-            const years = new Set();
-            features.forEach(f => { if (f.properties.budget_history) f.properties.budget_history.forEach(b => years.add(b.year)); });
-            const select = document.getElementById('filterYear');
-            Array.from(years).sort().forEach(y => {
-                const opt = document.createElement('option'); opt.value = y; opt.textContent = `พ.ศ. ${y}`;
-                select.appendChild(opt);
+        async function loadMoo() { try { const { data } = await db.rpc('get_moo_boundary'); if (data) mooLayer = L.geoJSON(data, { interactive: false, style: { color: "#1976d2", fillOpacity: 0.1, dashArray: '5,5' }, onEachFeature: (f, l) => l.bindTooltip(`หมู่ ${f.properties.moo_no}`, { permanent: true, direction: "center" }) }).addTo(map); } catch (e) { } }
+        async function loadBoundary() { try { const { data } = await db.rpc('get_tambon_boundary'); if (data) boundaryLayer = L.geoJSON(data, { interactive: false, style: { color: "#d32f2f", fill: false, dashArray: '10,5' } }).addTo(map); } catch (e) { } }
+        async function loadSoi() { 
+            try { 
+                const { data } = await db.rpc('get_sanklang_soi_final'); 
+                if (data) { 
+                    soiLayer = L.geoJSON(data, { interactive: false, pane: 'soiPane', style: { color: "#6c757d", weight: 2, opacity: 0.6 } }); 
+                } 
+            } catch (e) { } 
+        }
+
+        // ==========================================
+        // STACK SEARCH LOGIC
+        // ==========================================
+        function isPointInPolygon(point, vs) {
+            var x = point[0], y = point[1]; var inside = false;
+            for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                var xi = vs[i][0], yi = vs[i][1]; var xj = vs[j][0], yj = vs[j][1];
+                var intersect = ((yi > y) != (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            } return inside;
+        }
+
+        function isPointInMultiPolygon(point, multiPolyCoords) {
+            for (let i = 0; i < multiPolyCoords.length; i++) {
+                let ring = multiPolyCoords[i][0]; if (isPointInPolygon(point, ring)) return true;
+            } return false;
+        }
+
+        function handleStackClick(e) {
+            const clickLat = e.latlng.lat;
+            const clickLng = e.latlng.lng;
+            const clickPoint = [clickLng, clickLat]; 
+
+            const foundProjects = [];
+
+            filteredFeaturesGlobal.forEach(feature => {
+                const geom = feature.geometry;
+                if (geom.type === 'Polygon') {
+                    if (isPointInPolygon(clickPoint, geom.coordinates[0])) foundProjects.push(feature);
+                } else if (geom.type === 'MultiPolygon') {
+                    if (isPointInMultiPolygon(clickPoint, geom.coordinates)) foundProjects.push(feature);
+                } else if (geom.type === 'Point') {
+                    const dist = map.distance(e.latlng, L.latLng(geom.coordinates[1], geom.coordinates[0]));
+                    if (dist < 20) foundProjects.push(feature);
+                } else if (geom.type === 'MultiPoint') {
+                    for (let coord of geom.coordinates) {
+                        const dist = map.distance(e.latlng, L.latLng(coord[1], coord[0]));
+                        if (dist < 20) { foundProjects.push(feature); break; }
+                    }
+                } else if (geom.type.includes('Line')) {
+                    const pt = turf.point([clickLng, clickLat]);
+                    let isNear = false;
+                    try {
+                        if (geom.type === 'MultiLineString') {
+                            for (let coords of geom.coordinates) {
+                                const d = turf.pointToLineDistance(pt, turf.lineString(coords), { units: 'meters' });
+                                if (d < 15) { isNear = true; break; }
+                            }
+                        } else {
+                            const d = turf.pointToLineDistance(pt, turf.lineString(geom.coordinates), { units: 'meters' });
+                            if (d < 15) isNear = true;
+                        }
+                    } catch (err) { }
+                    if (isNear) foundProjects.push(feature);
+                }
             });
+
+            if (foundProjects.length > 0) {
+                L.DomEvent.stopPropagation(e);
+                openSidebar(foundProjects);
+            }
+        }
+
+        map.on('click', handleStackClick);
+
+        function openSidebar(features) {
+            currentStack = features;
+            if (features.length > 1) { showStackList(features); }
+            else if (features.length === 1) { renderDetail(features[0].properties); }
+        }
+
+        function showStackList(features) {
+            const content = document.getElementById('sidebarContent');
+            let listHtml = `<h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-layer-group text-primary"></i> พบ ${features.length} โครงการ</h5><div class="list-group">`;
+            features.forEach((f, index) => {
+                const p = f.properties;
+                listHtml += `<button onclick="openDetailFromStack(${index})" class="list-group-item list-group-item-action p-3 mb-2 border rounded shadow-sm text-start"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 fw-bold text-primary text-truncate" style="max-width: 200px;">${p.name || p.project}</h6></div><small class="text-muted"><i class="fa-solid fa-building"></i> ${p.dept || p.authority}</small></button>`;
+            });
+            listHtml += `</div>`;
+            content.innerHTML = listHtml;
+            document.getElementById('selectionSidebar').classList.add('active');
+        }
+
+        function openDetailFromStack(index) { renderDetail(currentStack[index].properties); }
+
+        function renderDetail(props) {
+            const content = document.getElementById('sidebarContent');
+            let budgetHtml = '';
+            if (props.budget_history && props.budget_history.length > 0) {
+                props.budget_history.forEach(b => { const money = new Intl.NumberFormat('th-TH').format(b.amount); budgetHtml += `<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded bg-white"><span class="badge bg-primary">ปี ${b.year}</span><span class="fw-bold text-dark">${money} บาท</span></div>`; });
+            } else { budgetHtml = `<div class="text-center text-muted p-3">ยังไม่มีข้อมูลงบประมาณ</div>`; }
+
+            let backBtn = '';
+            if (currentStack.length > 1) { backBtn = `<button onclick="showStackList(currentStack)" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารายการ</button>`; }
+
+            content.innerHTML = `
+                ${backBtn}
+                <h4 class="fw-bold text-primary mb-3" style="line-height:1.4;">${props.name || props.project}</h4>
+                <div class="bg-white p-3 rounded shadow-sm border mb-3">
+                    <div class="mb-2"><strong><i class="fa-solid fa-map-pin text-danger me-2"></i>พื้นที่:</strong> หมู่ที่ ${props.moo}</div>
+                    <div class="mb-0"><strong><i class="fa-solid fa-building text-info me-2"></i>หน่วยงาน:</strong> ${props.dept || props.authority}</div>
+                </div>
+                
+                <h6 class="fw-bold mt-2 mb-2 text-secondary">ประวัติงบประมาณ</h6>
+                <div class="bg-light p-2 rounded border mb-4">${budgetHtml}</div>
+            `;
+            document.getElementById('selectionSidebar').classList.add('active');
         }
 
         function applyFilters() {
-            const kw = document.getElementById('sidebarSearch').value.toLowerCase();
-            const yr = document.getElementById('filterYear').value;
-            const mo = document.getElementById('filterMoo').value;
-
+            const kw = document.getElementById('sidebarSearch').value.toLowerCase().split(' ').filter(x => x);
+            const yr = document.getElementById('filterYear').value; const mo = document.getElementById('filterMoo').value;
             const filtered = allFeatures.filter(f => {
-                const p = f.properties;
-                const matchName = (p.project || p.name || '').toLowerCase().includes(kw);
-                const matchMoo = (mo === 'all' || p.moo == mo);
-                const matchYear = (yr === 'all' || (p.budget_history && p.budget_history.some(b => b.year == yr)));
-                return matchName && matchMoo && matchYear;
+                const p = f.properties; const name = (p.project || p.name || '').toLowerCase();
+                return (kw.length === 0 || kw.every(k => name.includes(k))) && (mo === 'all' || p.moo == mo) && (yr === 'all' || (p.budget_history && p.budget_history.some(b => b.year == yr)));
             });
-
-            filteredFeaturesGlobal = filtered;
-            renderLayers(filtered);
-            renderList(filtered);
-            document.getElementById('resultCount').innerText = `พบ ${filtered.length} รายการ`;
+            filteredFeaturesGlobal = filtered; renderFilteredLayers(filtered); renderFilteredList(filtered); document.getElementById('resultCount').innerText = `พบ ${filtered.length} โครงการ`;
         }
 
-        function renderLayers(features) {
+        function renderFilteredLayers(features) {
             projectLayerGroup.clearLayers();
-            L.geoJSON(features, {
-                style: f => ({ color: '#0d6efd', weight: f.geometry.type.includes('Line') ? 5 : 2, fillOpacity: 0.3 }),
-                pointToLayer: (f, latlng) => L.marker(latlng, { icon: getCustomIcon(f.properties.icon, f.properties.color) }),
-                onEachFeature: (f, l) => l.on('click', (e) => { L.DomEvent.stopPropagation(e); renderDetail(f.properties); })
-            }).addTo(projectLayerGroup);
+            const tempLayer = L.geoJSON(features, {
+                interactive: true,
+                style: f => ({ 
+                    color: '#0d6efd', 
+                    weight: f.geometry.type.includes('Line') ? 5 : 2, 
+                    opacity: 0.9,
+                    fillOpacity: 0.3 
+                }),
+                pointToLayer: (feature, latlng) => {
+                    const iconCode = feature.properties.icon || 'default';
+                    const colorCode = feature.properties.color || '#ffc107'; 
+                    const marker = L.marker(latlng, { icon: getCustomIcon(iconCode, colorCode) });
+                    marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                    return marker;
+                },
+                onEachFeature: (f, l) => {
+                    if (f.geometry.type !== 'Point') {
+                        l.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                    }
+                }
+            });
+            tempLayer.eachLayer(l => projectLayerGroup.addLayer(l));
         }
 
-        function renderList(features) {
+        function renderFilteredList(features) {
             const box = document.getElementById('sidebarList'); box.innerHTML = '';
-            features.forEach(f => {
+            features.forEach((f) => {
                 const div = document.createElement('div'); div.className = 'result-item';
-                div.innerHTML = `<div class="fw-bold text-primary">${f.properties.name || f.properties.project}</div><small class="text-muted">หมู่ ${f.properties.moo} | ${f.properties.authority || f.properties.dept}</small>`;
+                div.innerHTML = `<div class="fw-bold text-primary text-truncate">${f.properties.name || f.properties.project}</div><small class="text-muted">ม.${f.properties.moo} | ${f.properties.authority || f.properties.dept}</small>`;
                 div.onclick = () => {
-                    renderDetail(f.properties);
                     const target = projectLayerGroup.getLayers().find(l => (l.feature.properties.fid || l.feature.properties.id) == (f.properties.fid || f.properties.id));
                     if (target) {
                         if (target.getBounds) map.flyTo(target.getBounds().getCenter(), 18); else map.flyTo(target.getLatLng(), 18);
+                        openSidebar([f]);
                     }
                 };
                 box.appendChild(div);
             });
         }
 
-        function renderDetail(props) {
-            const content = document.getElementById('sidebarContent');
-            let budgets = props.budget_history?.map(b => `<div class="d-flex justify-content-between p-2 border-bottom"><span>ปี ${b.year}</span><strong>${new Intl.NumberFormat('th-TH').format(b.amount)} บาท</strong></div>`).join('') || 'ไม่มีข้อมูล';
-            
-            content.innerHTML = `
-                <h5 class="fw-bold text-primary">${props.name || props.project}</h5>
-                <p class="mb-1"><i class="fa-solid fa-map-pin me-2"></i>หมู่ที่ ${props.moo}</p>
-                <p class="mb-3 text-muted"><i class="fa-solid fa-building me-2"></i>${props.dept || props.authority}</p>
-                <h6 class="fw-bold mt-4 border-bottom pb-2">ประวัติงบประมาณ</h6>
-                <div>${budgets}</div>
-            `;
-            document.getElementById('selectionSidebar').classList.add('active');
-        }
+        function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
+        function closeSidebar() { document.getElementById('selectionSidebar').classList.remove('active'); }
 
-        function toggleLayer(type, el) {
+        function toggleLayer(type, element) {
             let target;
             if (type === 'project') target = projectLayerGroup;
             else if (type === 'moo') target = mooLayer;
             else if (type === 'boundary') target = boundaryLayer;
             else if (type === 'soi') target = soiLayer;
 
-            let icon = el.querySelector('i:last-child');
-            if (map.hasLayer(target)) { 
-                map.removeLayer(target); 
-                icon.className = 'fa-solid fa-eye-slash text-muted'; 
-            } else { 
-                map.addLayer(target); 
-                icon.className = 'fa-solid fa-eye text-primary'; 
+            if (target) {
+                var icon = element.querySelector('i.fa-eye') || element.querySelector('i.fa-eye-slash');
+                if (map.hasLayer(target)) {
+                    map.removeLayer(target);
+                    if (icon) { icon.className = 'fa-solid fa-eye-slash text-muted eye-icon'; }
+                } else {
+                    map.addLayer(target);
+                    if (icon) { icon.className = 'fa-solid fa-eye text-primary eye-icon'; }
+                }
             }
         }
 
-        function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
-        function closeSidebar() { document.getElementById('selectionSidebar').classList.remove('active'); }
+        // เริ่มต้นการทำงานด้วยการเช็ค Session ก่อน ไม่โหลดข้อมูลจนกว่าจะล็อกอิน
+        document.addEventListener('DOMContentLoaded', checkSession);
 
-        loadData();
     </script>
 </body>
+
 </html>
