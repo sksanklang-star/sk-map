@@ -1,134 +1,405 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Portal - ระบบจัดการโครงการ</title>
-    
+    <title>Admin Portal - ระบบจัดการโครงการ (Soi Hidden)</title>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
 
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script src="https://unpkg.com/wellknown@1.5.0/wellknown.js"></script>
+
     <style>
-        body { font-family: 'Sarabun', sans-serif; overflow: hidden; margin: 0; }
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        .bi {
+            font-family: "bootstrap-icons" !important;
+        }
+        #iconInputNew {
+            font-family: "Bootstrap Icons";
+        }
+        body {
+            font-family: 'Sarabun', sans-serif;
+            overflow: hidden;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
 
-        /* Login Overlay */
-        #loginOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            background: linear-gradient(135deg, #212529 0%, #343a40 100%);
-            z-index: 9999; display: flex; align-items: center; justify-content: center;
-            transition: opacity 0.5s ease, visibility 0.5s ease;
+        .top-navbar {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            z-index: 1020;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
-        .login-card {
-            background: white; padding: 40px; border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.5); width: 100%; max-width: 400px; text-align: center;
-        }
-        
-        /* Map Toggle */
-        .map-toggle-group {
-            position: absolute; top: 20px; right: 80px; z-index: 1000;
-            background: white; border-radius: 50px; padding: 5px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15); display: flex; gap: 5px;
-        }
-        .toggle-btn {
-            border: none; background: transparent; padding: 8px 16px; border-radius: 50px;
-            font-size: 14px; font-weight: 600; color: #6c757d; transition: all 0.3s;
-        }
-        .toggle-btn.active { background: #0d6efd; color: white; box-shadow: 0 2px 10px rgba(13, 110, 253, 0.3); }
 
-        .admin-badge {
-            position: absolute; top: 80px; right: 20px; z-index: 1000;
-            background: #dc3545; color: white; padding: 5px 12px; border-radius: 30px;
-            font-size: 12px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); pointer-events: none;
+        .modal {
+            z-index: 1060 !important;
         }
-        .logout-btn {
-            position: absolute; top: 20px; right: 20px; z-index: 1000;
-            width: 40px; height: 40px; border-radius: 50%; border: none;
-            background: white; color: #dc3545; font-size: 18px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2); cursor: pointer;
-        }
-        .logout-btn:hover { background: #f8f9fa; transform: scale(1.1); }
 
-        /* Filter Card (Reduced size) */
-        .filter-card {
-            position: absolute; top: 20px; left: 50px; 
-            z-index: 1000; width: 280px;
-            background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-            border: none; border-radius: 15px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        .modal-backdrop {
+            z-index: 1050 !important;
         }
-        .filter-header { cursor: pointer; user-select: none; }
-        #filterToggleIcon { transition: transform 0.3s ease; }
-        .filter-header[aria-expanded="false"] #filterToggleIcon { transform: rotate(180deg); }
 
-        /* 🔥 List Sidebar (Left) */
+        .nav-brand {
+            font-weight: 700;
+            color: #0d6efd;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-tools {
+            display: flex;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            border: 1px solid #eee;
+            background: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            color: #555;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .nav-btn.active {
+            background: #e7f1ff;
+            color: #0d6efd;
+            border-color: #0d6efd;
+            font-weight: bold;
+        }
+
+        .nav-btn-danger {
+            color: #dc3545;
+            border-color: #ffeaea;
+        }
+
+        .nav-btn-danger:hover {
+            background: #dc3545;
+            color: white;
+        }
+
+        .custom-marker-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            border: 2px solid white;
+            cursor: pointer !important;
+            pointer-events: auto !important;
+        }
+
+        #map {
+            flex-grow: 1;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .draggable-panel {
+            position: absolute;
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(5px);
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            z-index: 1030;
+            display: none;
+            border: 1px solid #eee;
+        }
+
+        .panel-header {
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #eee;
+            border-radius: 10px 10px 0 0;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-body {
+            padding: 15px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .leaflet-top {
+            top: 10px;
+        }
+
         .list-sidebar {
-            position: fixed; top: 0; left: -400px; width: 350px; height: 100vh;
-            background: white; z-index: 2000; box-shadow: 5px 0 25px rgba(0,0,0,0.15);
-            transition: left 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow-y: auto; display: flex; flex-direction: column;
+            position: fixed;
+            top: 60px;
+            left: -400px;
+            width: 350px;
+            height: calc(100vh - 60px);
+            background: white;
+            z-index: 1025;
+            box-shadow: 5px 0 25px rgba(0, 0, 0, 0.15);
+            transition: left 0.4s;
+            display: flex;
+            flex-direction: column;
         }
-        .list-sidebar.active { left: 0; }
-        
-        .sidebar-header { background: #0d6efd; color: white; padding: 20px; position: sticky; top: 0; z-index: 10; }
-        .close-sidebar-btn { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; }
-        
-        .result-item {
-            cursor: pointer; transition: background 0.2s; font-size: 0.9rem;
-            border-bottom: 1px solid #f0f0f0; padding: 15px;
-        }
-        .result-item:hover { background: #f8f9fa; border-left: 4px solid #0d6efd; }
 
-        /* Tools */
-        .bottom-right-tools {
-            position: absolute; bottom: 30px; right: 10px; z-index: 900;
-            display: flex; flex-direction: column; align-items: end; gap: 10px;
+        .list-sidebar.active {
+            left: 0;
         }
-        .round-btn {
-            width: 45px; height: 45px; border-radius: 50%; border: none;
-            background: white; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            color: #333; font-size: 20px; cursor: pointer; transition: all 0.2s;
-            display: flex; align-items: center; justify-content: center;
+
+        .selection-sidebar {
+            position: fixed;
+            top: 60px;
+            right: -400px;
+            width: 350px;
+            height: calc(100vh - 60px);
+            background: white;
+            z-index: 1025;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
+            transition: right 0.4s;
+            display: flex;
+            flex-direction: column;
         }
-        .round-btn:hover { background: #f8f9fa; transform: scale(1.1); }
-        
-        .layer-control-card {
-            width: 250px; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-            border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); overflow: hidden;
-            transition: all 0.3s ease; transform-origin: bottom right; margin-bottom: 5px;
+
+        .selection-sidebar.active {
+            right: 0;
         }
-        .layer-control-card.hidden { transform: scale(0); opacity: 0; pointer-events: none; height: 0; margin: 0; }
+
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            background: #212529;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .custom-marker-icon {
+            display: flex; align-items: center; justify-content: center; 
+            border-radius: 50%; color: white; font-size: 16px; /* ปรับขนาดฟอนต์ */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3); border: 2px solid white;
+            cursor: pointer !important; pointer-events: auto !important;
+            
+            /* 🔥 เพิ่มบรรทัดนี้สำคัญมาก: บอกให้ใช้ฟอนต์ไอคอน */
+            font-family: 'bootstrap-icons' !important; 
+            font-style: normal;
+        }
+        .float-controls {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1045;
+            display: none;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 15px;
+            border-radius: 50px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            align-items: center;
+            border: 1px solid #ddd;
+            width: 55%;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .snap-tool {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-right: 1px solid #ddd;
+            padding-right: 10px;
+            margin-right: 5px;
+        }
+
+        .snap-label {
+            font-size: 0.8rem;
+            font-weight: bold;
+            width: 35px;
+            text-align: right;
+        }
+
+        .control-label {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-right: 5px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .btn-circle:hover {
+            transform: scale(1.1);
+        }
+
+        .btn-pill {
+            padding: 8px 20px;
+            border-radius: 30px;
+            border: none;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-pill:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-add {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-eraser {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-eraser.active {
+            background: #dc3545;
+            color: white;
+            box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-finish {
+            background: #198754;
+            color: white;
+        }
+
+        .btn-cancel {
+            background: #dc3545;
+            color: white;
+        }
 
         .layer-item {
-            display: flex; justify-content: space-between; align-items: center; padding: 10px 15px;
-            border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
         }
-        .layer-item:hover { background: #f8f9fa; }
-        .eye-icon { color: #0d6efd; font-size: 16px; width: 20px; text-align: center; }
-        .eye-icon.disabled { color: #ccc; }
 
-        /* Right Sidebar Selection */
-        .selection-sidebar {
-            position: fixed; top: 0; right: -400px; width: 350px; height: 100vh;
-            background: white; z-index: 2000; box-shadow: -5px 0 25px rgba(0,0,0,0.15);
-            transition: right 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            overflow-y: auto; display: flex; flex-direction: column;
+        .result-item {
+            cursor: pointer;
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .selection-sidebar.active { right: 0; }
-        .sidebar-content { padding: 20px; flex-grow: 1; }
 
+        .result-item:hover {
+            background: #f8f9fa;
+            border-left: 4px solid #0d6efd;
+        }
+
+        .nav-user-badge {
+            background: #eee;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .modal {
+            pointer-events: none;
+        }
+
+        .modal-dialog {
+            pointer-events: auto;
+            z-index: 1070;
+        }
+
+        .modal-content {
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.2);
+            border: none;
+            border-radius: 15px;
+        }
+
+        .btn-edit-geom {
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            background-color: #ffc107;
+            border: none;
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-edit-geom:hover {
+            background-color: #e0a800;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
+
 <body>
 
     <div id="loginOverlay">
         <div class="login-card">
-            <h3 class="fw-bold mb-1 text-dark"><i class="fa-solid fa-user-shield"></i> ผู้ดูแลระบบ</h3>
-            <p class="text-muted small mb-4">Admin Portal Login</p>
+            <h3 class="fw-bold mb-1 text-dark">ผู้ดูแลระบบ</h3>
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <input type="email" id="authEmail" class="form-control mb-3" placeholder="admin@example.com" required>
                 <input type="password" id="authPassword" class="form-control mb-4" placeholder="••••••••" required>
@@ -137,98 +408,197 @@
         </div>
     </div>
 
-    <div class="map-toggle-group">
-        <button class="toggle-btn active" onclick="setMapType('street')" id="btn-street"><i class="fa-solid fa-map"></i> แผนที่</button>
-        <button class="toggle-btn" onclick="setMapType('satellite')" id="btn-satellite"><i class="fa-solid fa-satellite"></i> ดาวเทียม</button>
-    </div>
+    <nav class="top-navbar">
+        <div class="nav-brand"><i class="fa-solid fa-map-location-dot"></i> ระบบจัดการโครงการ</div>
+        <div class="nav-tools">
+            <button class="nav-btn" id="btn-filter" onclick="togglePanel('filterPanel', 'btn-filter')"><i
+                    class="fa-solid fa-filter"></i> ตัวกรอง</button>
+            <button class="nav-btn" id="btn-layer" onclick="togglePanel('layerPanel', 'btn-layer')"><i
+                    class="fa-solid fa-layer-group"></i> เลเยอร์</button>
+            <div class="vr mx-2"></div>
+            <button class="nav-btn active" id="btn-street" onclick="setMapType('street')">แผนที่</button>
+            <button class="nav-btn" id="btn-satellite" onclick="setMapType('satellite')">ดาวเทียม</button>
+            <div class="vr mx-2"></div>
+            <button class="nav-btn nav-btn-danger" onclick="handleLogout()"><i class="fa-solid fa-power-off"></i>
+                ออก</button>
+        </div>
+    </nav>
 
-    <button class="logout-btn" onclick="handleLogout()" title="ออกจากระบบ"><i class="fa-solid fa-power-off"></i></button>
-    <div class="admin-badge"><i class="fa-solid fa-pen-nib"></i> Admin Mode</div>
-    
     <div id="map"></div>
 
-    <div class="card filter-card p-3">
-        <div class="filter-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#filterBody" aria-expanded="true">
-            <h6 class="mb-0 fw-bold text-dark"><i class="fa-solid fa-filter"></i> ตัวกรองข้อมูล</h6>
-            <i class="fa-solid fa-chevron-up text-muted" id="filterToggleIcon"></i>
+    <div id="newProjectActions" class="float-controls">
+        <span class="control-label">ใหม่ (<span id="drawCount">0</span>)</span>
+
+        <div class="vr mx-2"></div>
+        <div class="input-group input-group-sm me-2" style="width: 100px;">
+            <span class="input-group-text px-1"><i class="bi bi-hash"></i></span>
+            <input type="text" id="iconInputNew" class="form-control px-1 text-center" placeholder="&#xF3E7;" oninput="updateRealtimeStyle(this.value, 'new')">
         </div>
-        <div class="collapse show" id="filterBody">
-            <div class="pt-3">
-                <div class="mb-2">  
-                    <select id="filterYear" class="form-select form-select-sm" onchange="applyFilters()">
-                        <option value="all">-- ทุกปีงบประมาณ --</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <select id="filterMoo" class="form-select form-select-sm" onchange="applyFilters()">
-                        <option value="all">-- ทุกหมู่บ้าน --</option>
-                        <option value="1">หมู่ 1</option>
-                        <option value="2">หมู่ 2</option>
-                        <option value="3">หมู่ 3</option>
-                        <option value="4">หมู่ 4</option>
-                        <option value="5">หมู่ 5</option>
-                        <option value="6">หมู่ 6</option>
-                        <option value="7">หมู่ 7</option>
-                    </select>
-                </div>
-                <button onclick="toggleListSidebar()" class="btn btn-primary w-100 rounded-pill fw-bold btn-sm"><i class="fa-solid fa-magnifying-glass"></i> ค้นหา / รายชื่อ</button>
+
+        <div class="vr mx-2"></div>
+        <input type="color" id="colorInputNew" class="form-control form-control-color me-2" value="#ffc107" title="เลือกสี" oninput="updateRealtimeStyle('new')">
+        <div class="vr mx-2"></div>
+
+        <div class="snap-tool">
+            <div class="form-check form-switch m-0" title="เปิด/ปิด Snap">
+                <input class="form-check-input" type="checkbox" id="snapToggleNew" checked
+                    onchange="syncSnapSettings('new')">
             </div>
+            <input type="range" class="form-range" style="width:70px" id="snapRangeNew" min="5" max="100" value="5"
+                oninput="syncSnapSettings('new')" title="ระยะดูด">
+            <span id="snapValNew" class="snap-label text-muted">5px</span>
+        </div>
+
+        <button class="btn-circle btn-add" title="วาดเพิ่ม" onclick="drawNextPart('new')"><i
+                class="fa-solid fa-plus"></i></button>
+        <button class="btn-circle btn-eraser" title="ลบเส้น" onclick="toggleEraserMode(this)"><i
+                class="fa-solid fa-eraser"></i></button>
+        <div class="vr mx-2"></div>
+        <button class="btn-pill btn-finish" onclick="finishNewProjectDrawing()">เสร็จสิ้น</button>
+        <button class="btn-pill btn-cancel" onclick="cancelNewProjectDrawing()">ยกเลิก</button>
+    </div>
+
+    <div id="editGeomControls" class="float-controls">
+        <div class="snap-tool">
+            <div class="form-check form-switch m-0" title="เปิด/ปิด Snap">
+                <input class="form-check-input" type="checkbox" id="snapToggleEdit" checked
+                    onchange="syncSnapSettings('edit')">
+            </div>
+            <input type="range" class="form-range" style="width:70px" id="snapRangeEdit" min="5" max="100" value="5"
+                oninput="syncSnapSettings('edit')" title="ระยะดูด">
+            <span id="snapValEdit" class="snap-label text-muted">5px</span>
+        </div>
+
+        <div class="vr mx-2"></div>
+        <div class="input-group input-group-sm me-2" style="width: 100px;">
+            <span class="input-group-text px-1"><i class="bi bi-hash"></i></span>
+            <input type="text" id="iconInputEdit" class="form-control px-1 text-center" placeholder="&#xF3E7;" oninput="updateRealtimeStyle('edit')">
+        </div>
+        <div class="vr mx-2"></div>
+        <input type="color" id="colorInputEdit" class="form-control form-control-color me-2" value="#ffc107" title="เลือกสี" oninput="updateRealtimeStyle('edit')">
+        <div class="vr mx-2"></div>
+
+        <button class="btn-circle btn-add" title="วาดเพิ่ม" onclick="drawNextPart('edit')"><i
+                class="fa-solid fa-plus"></i></button>
+        <button class="btn-circle btn-eraser" title="ลบเส้น" onclick="toggleEraserMode(this)"><i
+                class="fa-solid fa-eraser"></i></button>
+        <div class="vr mx-2"></div>
+        <button class="btn-pill btn-finish" onclick="finishGeometryEdit()">เสร็จสิ้น</button>
+        <button class="btn-pill btn-cancel" onclick="cancelGeometryEdit()">ยกเลิก</button>
+    </div>
+
+    <div id="filterPanel" class="draggable-panel" style="top: 80px; left: 60px;">
+        <div class="panel-header">
+            <h6 class="panel-title"><i class="fa-solid fa-magnifying-glass"></i> ค้นหาและกรอง</h6><i
+                class="fa-solid fa-xmark panel-close" onclick="togglePanel('filterPanel', 'btn-filter')"></i>
+        </div>
+        <div class="panel-body">
+            <div class="mb-2"><select id="filterYear" class="form-select form-select-sm" onchange="applyFilters()">
+                    <option value="all">-- ทุกปีงบประมาณ --</option>
+                </select></div>
+            <div class="mb-3"><select id="filterMoo" class="form-select form-select-sm" onchange="applyFilters()">
+                    <option value="all">-- ทุกหมู่บ้าน --</option>
+                    <option value="1">หมู่ 1</option>
+                    <option value="2">หมู่ 2</option>
+                    <option value="3">หมู่ 3</option>
+                    <option value="4">หมู่ 4</option>
+                    <option value="5">หมู่ 5</option>
+                </select></div>
+            <button onclick="toggleListSidebar()" class="btn btn-primary w-100 rounded-pill fw-bold btn-sm"><i
+                    class="fa-solid fa-list-ul"></i> เปิดรายชื่อ / ค้นหา</button>
+        </div>
+    </div>
+
+    <div id="layerPanel" class="draggable-panel" style="top: 80px; left: 380px;">
+        <div class="panel-header">
+            <h6 class="panel-title"><i class="fa-solid fa-layers"></i> จัดการเลเยอร์</h6><i
+                class="fa-solid fa-xmark panel-close" onclick="togglePanel('layerPanel', 'btn-layer')"></i>
+        </div>
+        <div class="panel-body">
+            <div class="layer-item" onclick="toggleLayer('project', this)"><span class="small fw-bold"><i
+                        class="fa-solid fa-circle text-warning me-2"></i> โครงการ</span><i
+                    class="fa-solid fa-eye text-primary"></i></div>
+
+            <div class="layer-item" onclick="toggleLayer('soi', this)">
+                <span class="small fw-bold"><i class="fa-solid fa-road text-secondary me-2"></i> ซอย (Soi)</span>
+                <i class="fa-solid fa-eye-slash text-muted eye-icon"></i>
+            </div>
+
+            <div class="layer-item" onclick="toggleLayer('moo', this)"><span class="small fw-bold"><i
+                        class="fa-regular fa-square text-primary me-2"></i> ขอบเขตหมู่</span><i
+                    class="fa-solid fa-eye text-primary"></i></div>
+            <div class="layer-item" onclick="toggleLayer('boundary', this)"><span class="small fw-bold"><i
+                        class="fa-regular fa-square text-danger me-2"></i> ขอบเขตตำบล</span><i
+                    class="fa-solid fa-eye text-primary"></i></div>
         </div>
     </div>
 
     <div id="listSidebar" class="list-sidebar">
-        <div class="sidebar-header bg-primary">
-            <button class="close-sidebar-btn" onclick="toggleListSidebar()"><i class="fa-solid fa-xmark"></i></button>
-            <h5 class="mb-0 fw-bold"><i class="fa-solid fa-list me-2"></i>รายชื่อโครงการ</h5>
+        <div class="sidebar-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold"><i class="fa-solid fa-list me-2"></i>รายชื่อ</h5><button
+                    class="btn btn-sm btn-outline-light rounded-circle" onclick="toggleListSidebar()"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
         </div>
-        <div class="p-3 bg-light border-bottom sticky-top" style="top:0;">
-            <input type="text" id="sidebarSearch" class="form-control rounded-pill" placeholder="🔍 พิมพ์ชื่อโครงการ..." onkeyup="applyFilters()">
-            <div class="text-end mt-2"><small class="text-muted" id="resultCount">แสดงทั้งหมด</small></div>
+        <div class="p-3 bg-light border-bottom"><input type="text" id="sidebarSearch" class="form-control rounded-pill"
+                placeholder="🔍 ค้นหาโครงการ..." onkeyup="applyFilters()">
+            <div class="text-end mt-1"><small class="text-muted" id="resultCount">แสดงทั้งหมด</small></div>
         </div>
-        <div id="sidebarList" class="list-group list-group-flush"></div>
+        <div id="sidebarList" class="list-group list-group-flush" style="overflow-y:auto; flex-grow:1;"></div>
     </div>
 
     <div id="selectionSidebar" class="selection-sidebar">
-        <div class="sidebar-header"><button class="close-sidebar-btn" onclick="closeSidebar()"><i class="fa-solid fa-xmark"></i></button><h5 class="mb-0 fw-bold"><i class="fa-solid fa-layer-group"></i> เลือกโครงการที่ต้องการแก้ไข</h5></div>
-        <div id="sidebarContent" class="sidebar-content"></div>
-    </div>
-
-    <div class="bottom-right-tools">
-        <div id="layerCard" class="layer-control-card">
-            <div class="bg-light p-2 border-bottom text-center text-muted small fw-bold">LAYERS</div>
-            <div class="layer-item" onclick="toggleLayer('project', this)"><span class="layer-name"><i class="fa-solid fa-circle text-warning me-2"></i> โครงการพัฒนา</span><i class="fa-solid fa-eye eye-icon"></i></div>
-            <div class="layer-item" onclick="toggleLayer('moo', this)"><span class="layer-name"><i class="fa-regular fa-square text-primary me-2"></i> ขอบเขตหมู่บ้าน</span><i class="fa-solid fa-eye eye-icon"></i></div>
-            <div class="layer-item" onclick="toggleLayer('boundary', this)"><span class="layer-name"><i class="fa-regular fa-square text-danger me-2"></i> ขอบเขตตำบล</span><i class="fa-solid fa-eye eye-icon"></i></div>
+        <div class="sidebar-header d-flex justify-content-between align-items-center p-3 border-bottom bg-light">
+            <h5 class="mb-0 fw-bold text-primary"><i class="fa-solid fa-circle-info me-2"></i>ข้อมูล</h5>
+            <button class="btn btn-md btn-outline-secondary rounded-circle" onclick="closeSidebar()"><i
+                    class="fa-solid fa-xmark"></i></button>
         </div>
-        <div class="d-flex gap-2">
-            <button class="round-btn" onclick="toggleLayerCard()" title="ซ่อน/แสดง เลเยอร์"><i class="fa-solid fa-layer-group"></i></button>
-        </div>
+        <div id="sidebarContent" class="p-3" style="overflow-y:auto; flex-grow:1;"></div>
     </div>
 
     <div class="modal fade" id="projectFormModal" data-bs-backdrop="static" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title" id="modalTitle"><i class="fa-solid fa-folder-plus"></i> จัดการโครงการ</h5>
-                    <button type="button" class="btn-close btn-close-white" onclick="cancelDrawing()"></button>
+                    <h5 class="modal-title" id="modalTitle">จัดการโครงการ</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="cancelModal()"></button>
                 </div>
                 <div class="modal-body">
+                    <button type="button" class="btn btn-edit-geom" id="btnStartEditGeom" onclick="startGeometryEdit()">
+                        <i class="fa-solid fa-pen-to-square"></i> ปรับแก้รูปทรง / เพิ่มเส้น
+                    </button>
+
                     <form id="newProjectForm">
                         <input type="hidden" id="editProjectId">
-                        <div class="mb-3"><label class="form-label">ชื่อโครงการ</label><input type="text" id="inpName" class="form-control" placeholder="เช่น โครงการก่อสร้างถนน..." required></div>
+                        <div class="mb-3"><label>ชื่อโครงการ</label>
+                            <textarea class="form-control" id="inpName" rows="3" required></textarea>
+                        </div>
                         <div class="row g-2 mb-3">
-                            <div class="col-6"><label class="form-label">หมู่ที่</label><select id="inpMoo" class="form-select"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option></select></div>
-                            <div class="col-6"><label class="form-label">หน่วยงาน</label><input type="text" id="inpDept" class="form-control" value="กองช่าง" required></div>
+                            <div class="col-6"><label>หมู่ที่</label><select id="inpMoo" class="form-select">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                </select></div>
+                            <div class="col-6"><label>หน่วยงาน</label><input type="text" id="inpDept"
+                                    class="form-control" value="กองช่าง" required></div>
                         </div>
                         <hr>
-                        <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="text-muted small fw-bold mb-0">งบประมาณรายปี</h6><button type="button" class="btn btn-sm btn-outline-success" onclick="addBudgetRow()">+ เพิ่มปี</button></div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-muted small fw-bold mb-0">งบประมาณ</h6><button type="button"
+                                class="btn btn-sm btn-outline-success" onclick="addBudgetRow()">+ เพิ่มปี</button>
+                        </div>
                         <div id="budgetList"></div>
-                        <div class="text-muted small mt-2">* หากไม่ระบุจำนวนเงิน ระบบจะบันทึกเป็น 0 บาท</div>
                     </form>
                 </div>
                 <div class="modal-footer d-flex justify-content-between">
-                    <button type="button" id="btnDelete" class="btn btn-danger" style="display:none;" onclick="deleteProject()"><i class="fa-solid fa-trash"></i> ลบ</button>
-                    <div><button type="button" class="btn btn-secondary" onclick="cancelDrawing()">ยกเลิก</button><button type="button" class="btn btn-primary fw-bold" onclick="saveProject()">💾 บันทึกข้อมูล</button></div>
+                    <button type="button" id="btnDelete" class="btn btn-danger" style="display:none;"
+                        onclick="deleteProject()"><i class="fa-solid fa-trash"></i> ลบ</button>
+                    <div><button type="button" class="btn btn-secondary" onclick="cancelModal()">ยกเลิก</button><button
+                            type="button" class="btn btn-primary fw-bold" onclick="saveProject()">💾 บันทึก</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -240,152 +610,137 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
-        const supabaseUrl = 'https://azxinrvdwsvmchovvjpl.supabase.co'; 
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk'; 
+        const supabaseUrl = 'https://azxinrvdwsvmchovvjpl.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk';
         const db = supabase.createClient(supabaseUrl, supabaseKey);
 
-        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' });
-        var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' });
+        var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false, maxZoom: 22 });
+        var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+            attribution: '© OpenStreetMap',
+            maxNativeZoom: 19, // ภาพจริงมีถึงแค่นี้
+            maxZoom: 22        // ยอมให้ซูมต่อได้ (ภาพจะแตกนิดหน่อยแต่เห็นใกล้ขึ้น)
+        }).addTo(map);        
+        
+        var satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { 
+            attribution: 'Tiles © Esri',
+            maxNativeZoom: 19, 
+            maxZoom: 22 
+        });        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false, layers: [streetMap] });
-        L.control.zoom({ position: 'topright' }).addTo(map);
+        // 🔥 สร้าง Pane พิเศษให้ซอย (Z-Index สูงๆ จะได้ไม่โดนทับ)
+        map.createPane('soiPane');
+        map.getPane('soiPane').style.zIndex = 450;
 
-        let currentDrawnLayer = null; 
+        let currentDrawnLayer = null;
+        let tempNewLayersGroup = L.featureGroup().addTo(map);
+        let tempExtraPartsGroup = L.featureGroup().addTo(map);
         let projectLayerGroup = L.featureGroup().addTo(map);
-        let mooLayer, boundaryLayer;
+        let currentEditLayer = null;
+        let isManualMode = false;
+
+        let originalGeoJSONBackup = null;
+        let originalStyleBackup = null;
+        let currentStack = [];
+        let isEraserActive = false;
+
+        let mooLayer, boundaryLayer, soiLayer;
         let allFeatures = [];
         let filteredFeaturesGlobal = [];
 
-        // ==========================================
-        // Auth & Init
-        // ==========================================
-        async function checkSession() {
-            const { data: { session } } = await db.auth.getSession();
-            if (session) {
-                document.getElementById('loginOverlay').style.opacity = '0';
-                setTimeout(() => {
-                    document.getElementById('loginOverlay').style.visibility = 'hidden';
-                    initAdminTools(); loadExistingProjects(); loadMoo(); loadBoundary();
-                }, 500);
-            } else { document.getElementById('loginOverlay').style.visibility = 'visible'; }
-        }
-        async function handleLogin(e) {
-            e.preventDefault();
-            const { error } = await db.auth.signInWithPassword({ 
-                email: document.getElementById('authEmail').value, 
-                password: document.getElementById('authPassword').value 
-            });
-            if (error) Swal.fire('Login Failed', error.message, 'error'); else checkSession();
-        }
-        async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
-        
-        function setMapType(type) {
-            map.removeLayer(streetMap); map.removeLayer(satelliteMap);
-            document.getElementById('btn-street').classList.remove('active');
-            document.getElementById('btn-satellite').classList.remove('active');
-            if (type === 'street') { map.addLayer(streetMap); document.getElementById('btn-street').classList.add('active'); } 
-            else { map.addLayer(satelliteMap); document.getElementById('btn-satellite').classList.add('active'); }
-        }
+        function togglePanel(id, btnId) { const p = document.getElementById(id); const b = document.getElementById(btnId); p.style.display = (p.style.display === 'none' || p.style.display === '') ? 'block' : 'none'; if (b) b.classList.toggle('active'); }
+        function preventMapClick(id) { const el = document.getElementById(id); if (el) { L.DomEvent.disableClickPropagation(el); L.DomEvent.disableScrollPropagation(el); } }
+        preventMapClick('editGeomControls'); preventMapClick('newProjectActions'); preventMapClick('filterPanel'); preventMapClick('layerPanel'); preventMapClick('listSidebar'); preventMapClick('selectionSidebar');
 
-        // ==========================================
-        // Geoman
-        // ==========================================
+        function makeDraggable(element) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0; element.querySelector('.panel-header').onmousedown = e => { e.preventDefault(); pos3 = e.clientX; pos4 = e.clientY; document.onmouseup = closeDrag; document.onmousemove = elmDrag; };
+            function elmDrag(e) { e.preventDefault(); pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY; pos3 = e.clientX; pos4 = e.clientY; element.style.top = (element.offsetTop - pos2) + "px"; element.style.left = (element.offsetLeft - pos1) + "px"; }
+            function closeDrag() { document.onmouseup = null; document.onmousemove = null; }
+        }
+        makeDraggable(document.getElementById("filterPanel")); makeDraggable(document.getElementById("layerPanel"));
+
+        async function checkSession() { const { data: { session } } = await db.auth.getSession(); if (session) { document.getElementById('loginOverlay').style.opacity = '0'; setTimeout(() => { document.getElementById('loginOverlay').style.visibility = 'hidden'; initAdminTools(); loadExistingProjects(); loadMoo(); loadBoundary(); loadSoi(); }, 500); } }
+        async function handleLogin(e) { e.preventDefault(); const { error } = await db.auth.signInWithPassword({ email: document.getElementById('authEmail').value, password: document.getElementById('authPassword').value }); if (error) Swal.fire('Error', error.message, 'error'); else checkSession(); }
+        async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
+        function setMapType(type) { if (type === 'street') { map.addLayer(streetMap); map.removeLayer(satelliteMap); } else { map.addLayer(satelliteMap); map.removeLayer(streetMap); } document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); document.getElementById('btn-' + type).classList.add('active'); }
+
         function initAdminTools() {
+            // ดึงค่าเริ่มต้นจากช่อง New มาตั้งเป็น Default Cursor
+            const initialIcon = document.getElementById('iconInputNew').value;
+            const initialColor = document.getElementById('colorInputNew').value;
+            const startIcon = getCustomIcon(initialIcon, initialColor);
+
+            map.pm.setGlobalOptions({ 
+                snappable: true, 
+                snapDistance: 30, 
+                allowSelfIntersection: true, 
+                pinning: true,
+                // ตั้งค่า Cursor เริ่มต้น
+                markerStyle: { icon: startIcon },      
+                hintMarkerStyle: { icon: startIcon },
+                templineStyle: { color: initialColor },
+                hintlineStyle: { color: initialColor, dashArray: [5, 5] }
+            });
+
             map.pm.addControls({
                 position: 'topleft',
-                drawCircle: false, drawCircleMarker: false, drawPolyline: false, drawRectangle: true,
-                drawPolygon: true, drawMarker: true,
-                editMode: true, dragMode: true, cutPolygon: true, removalMode: true
+                drawMarker: true, drawPolygon: true, drawPolyline: true,
+                drawRectangle: false, drawCircle: false, drawCircleMarker: false, drawText: false,
+                editMode: false, dragMode: false, cutPolygon: false, removalMode: false, rotateMode: false
             });
+
+            map.on('pm:drawstart', () => { isManualMode = true; });
+            map.on('pm:drawend', () => { setTimeout(() => { isManualMode = false; }, 200); });
+
             map.on('pm:create', (e) => {
-                currentDrawnLayer = e.layer;
-                resetBudgetForm(); 
-                document.getElementById('editProjectId').value = '';
-                document.getElementById('modalTitle').innerText = 'เพิ่มโครงการใหม่';
-                document.getElementById('btnDelete').style.display = 'none';
-                new bootstrap.Modal(document.getElementById('projectFormModal')).show();
-            });
-        }
+                const layer = e.layer;
+                map.removeLayer(layer);
 
-        // ==========================================
-        // 🔥 Filter & Left Sidebar Logic
-        // ==========================================
-        function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
+                const snapOpts = getCurrentSnapSettings();
+                setupFocusClick(layer);
 
-        function applyFilters() {
-            const rawInput = document.getElementById('sidebarSearch').value.toLowerCase();
-            const searchTerms = rawInput.split(' ').filter(term => term.trim() !== '');
-            const selectedYear = document.getElementById('filterYear').value;
-            const selectedMoo = document.getElementById('filterMoo').value;
+                // เช็คว่าวาดในโหมดไหน (New หรือ Edit)
+                const isEditMode = document.getElementById('editGeomControls').style.display === 'flex';
+                const context = isEditMode ? 'Edit' : 'New';
 
-            const filtered = allFeatures.filter(f => {
-                const p = f.properties;
-                const projectName = (p.project || p.name || '').toLowerCase();
-                const matchName = searchTerms.length === 0 || searchTerms.every(term => projectName.includes(term));
-                const matchMoo = selectedMoo === 'all' || p.moo == selectedMoo;
-                let matchYear = false;
-                if (selectedYear === 'all') matchYear = true;
-                else if (p.budget_history && p.budget_history.length > 0) { matchYear = p.budget_history.some(b => b.year == selectedYear); }
-                return matchName && matchMoo && matchYear;
-            });
+                // ดึงค่าจากช่อง Input ตามโหมด
+                const iconCode = document.getElementById('iconInput' + context).value;
+                const colorCode = document.getElementById('colorInput' + context).value;
 
-            filteredFeaturesGlobal = filtered; 
-            renderFilteredLayers(filtered);
-            renderFilteredList(filtered); 
-            document.getElementById('resultCount').innerText = `พบ ${filtered.length} โครงการ`;
-        }
-
-        function renderFilteredLayers(features) {
-            projectLayerGroup.clearLayers();
-            const tempLayer = L.geoJSON(features, {
-                style: { color: "#ffc107", weight: 2, fillOpacity: 0.3 }
-            });
-            tempLayer.eachLayer(layer => { projectLayerGroup.addLayer(layer); });
-        }
-
-        function renderFilteredList(features) {
-            const listContainer = document.getElementById('sidebarList');
-            listContainer.innerHTML = '';
-            if (features.length === 0) {
-                listContainer.innerHTML = '<div class="text-center text-muted p-4">ไม่พบโครงการ</div>';
-                return;
-            }
-            features.forEach((f, index) => {
-                const p = f.properties;
-                const div = document.createElement('div');
-                div.className = 'list-group-item result-item'; // Use bootstrap class
-                div.onclick = () => jumpToFeature(index); 
-                div.innerHTML = `
-                    <div class="fw-bold text-primary text-truncate">${p.name || p.project}</div>
-                    <div class="d-flex justify-content-between small text-muted">
-                        <span><i class="fa-solid fa-map-pin"></i> ม.${p.moo}</span>
-                        <span>${p.authority || p.dept}</span>
-                    </div>
-                `;
-                listContainer.appendChild(div);
-            });
-        }
-
-        // 🔥 Jump Only (No Edit Modal)
-        function jumpToFeature(index) {
-            const feature = filteredFeaturesGlobal[index];
-            const targetId = feature.properties.fid || feature.properties.id;
-            const layers = projectLayerGroup.getLayers();
-            const targetLayer = layers.find(l => (l.feature.properties.fid || l.feature.properties.id) === targetId);
-
-            if (targetLayer) {
-                if (targetLayer.getBounds) {
-                    map.flyTo(targetLayer.getBounds().getCenter(), 18, { duration: 1.5 });
-                } else if (targetLayer.getLatLng) {
-                    map.flyTo(targetLayer.getLatLng(), 18, { duration: 1.5 });
+                // ใส่ Style ให้ Layer ที่เพิ่งวาดเสร็จ
+                if (layer instanceof L.Marker) {
+                    layer.setIcon(getCustomIcon(iconCode, colorCode));
+                } else {
+                    layer.setStyle({ color: colorCode, weight: 4, dashArray: isEditMode ? "5, 5" : null });
                 }
-                // Optional: Highlight effect or popup could go here
-                // targetLayer.openPopup(); 
-            }
+
+                // ฝังระเบิดยางลบ
+                setupEditableLayer(layer);
+
+                // เอาเข้า Group ที่ถูกต้อง
+                if (isEditMode) {
+                    tempExtraPartsGroup.addLayer(layer);
+                    layer.addTo(map);
+                } else {
+                    tempNewLayersGroup.addLayer(layer);
+                    layer.addTo(map);
+                    // เปิดให้ Snap ต่อได้
+                    layer.pm.enable({ 
+                        allowSelfIntersection: true, 
+                        draggable: false, 
+                        pinning: true, 
+                        snappable: true, 
+                        snapDistance: 30 
+                    });
+                    updateNewProjectButtons();
+                }
+            });
+
+            tempNewLayersGroup.on('layerremove', updateNewProjectButtons);
         }
 
+        
         // ==========================================
-        // Raycasting & Stack (Right Sidebar)
+        // 🔥 STACK SEARCH LOGIC
         // ==========================================
         function isPointInPolygon(point, vs) {
             var x = point[0], y = point[1]; var inside = false;
@@ -401,184 +756,884 @@
             } return false;
         }
 
-        map.on('click', function(e) {
-            if (map.pm.globalDrawModeEnabled() || map.pm.globalEditModeEnabled()) return;
-            const clickLat = e.latlng.lat; const clickLng = e.latlng.lng; const clickPoint = [clickLng, clickLat];
-            const visibleLayers = projectLayerGroup.getLayers();
+        function handleStackClick(e) {
+            if (isManualMode) return;
+
+            const clickLat = e.latlng.lat;
+            const clickLng = e.latlng.lng;
+            const clickPoint = [clickLng, clickLat]; // GeoJSON uses [Lng, Lat]
+            const clickPx = map.latLngToContainerPoint(e.latlng); // For pixel calculation (optional)
+
             const foundProjects = [];
 
-            visibleLayers.forEach(layer => {
-                const feature = layer.feature;
+            filteredFeaturesGlobal.forEach(feature => {
                 const geom = feature.geometry;
-                let hit = false;
-                if (geom.type === 'Polygon') { if (isPointInPolygon(clickPoint, geom.coordinates[0])) hit = true; } 
-                else if (geom.type === 'MultiPolygon') { if (isPointInMultiPolygon(clickPoint, geom.coordinates)) hit = true; }
-                else if (geom.type === 'Point') {
-                    const dist = map.distance(e.latlng, L.latLng(geom.coordinates[1], geom.coordinates[0]));
-                    if (dist < 15) hit = true;
+
+                // 1. Polygon
+                if (geom.type === 'Polygon') {
+                    if (isPointInPolygon(clickPoint, geom.coordinates[0])) foundProjects.push(feature);
                 }
-                if(hit) foundProjects.push(feature);
+                // 2. MultiPolygon
+                else if (geom.type === 'MultiPolygon') {
+                    if (isPointInMultiPolygon(clickPoint, geom.coordinates)) foundProjects.push(feature);
+                }
+                // 3. Point
+                else if (geom.type === 'Point') {
+                    const pLat = geom.coordinates[1];
+                    const pLng = geom.coordinates[0];
+                    // เช็คระยะห่าง 20 เมตร (ตามโค้ดเดิมของคุณรัน)
+                    const dist = map.distance(e.latlng, L.latLng(pLat, pLng));
+                    if (dist < 20) foundProjects.push(feature);
+                }
+                // 4. 🔥 NEW: MultiPoint Logic
+                else if (geom.type === 'MultiPoint') {
+                    // วนลูปเช็คทุกจุดใน MultiPoint
+                    for (let coord of geom.coordinates) {
+                        const pLng = coord[0];
+                        const pLat = coord[1];
+                        const dist = map.distance(e.latlng, L.latLng(pLat, pLng));
+
+                        // ถ้าเจอจุดไหนใกล้กว่า 20 เมตร ให้ถือว่าเจอแล้ว (Break)
+                        if (dist < 20) {
+                            foundProjects.push(feature);
+                            break;
+                        }
+                    }
+                }
+                // 5. LineString & MultiLineString
+                else if (geom.type.includes('Line')) {
+                    const pt = turf.point([clickLng, clickLat]);
+                    let isNear = false;
+                    try {
+                        if (geom.type === 'MultiLineString') {
+                            for (let coords of geom.coordinates) {
+                                const line = turf.lineString(coords);
+                                const d = turf.pointToLineDistance(pt, line, { units: 'meters' });
+                                if (d < 15) { isNear = true; break; }
+                            }
+                        } else {
+                            const ln = turf.lineString(geom.coordinates);
+                            const d = turf.pointToLineDistance(pt, ln, { units: 'meters' });
+                            if (d < 15) isNear = true;
+                        }
+                    } catch (err) { console.log('Line check error', err); }
+
+                    if (isNear) foundProjects.push(feature);
+                }
             });
 
             if (foundProjects.length > 0) {
-                if (foundProjects.length === 1) { openEditModalFromFeature(foundProjects[0]); } 
-                else { showStackList(foundProjects); }
+                L.DomEvent.stopPropagation(e);
+                openSidebar(foundProjects);
             }
-        });
+        }
+
+        map.on('click', handleStackClick);
+
+        function openSidebar(features) {
+            currentStack = features;
+            if (features.length > 1) { showStackList(features); }
+            else if (features.length === 1) { renderDetail(features[0].properties); }
+        }
 
         function showStackList(features) {
             const content = document.getElementById('sidebarContent');
-            let listHtml = `<div class="list-group">`;
+            let listHtml = `<h5 class="fw-bold mb-3 text-dark"><i class="fa-solid fa-layer-group text-primary"></i> พบ ${features.length} โครงการ</h5><div class="list-group">`;
             features.forEach((f, index) => {
                 const p = f.properties;
-                listHtml += `<button onclick='openEditModalFromStack(${index})' class="list-group-item list-group-item-action p-3 mb-2 border rounded shadow-sm text-start"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 fw-bold text-primary text-truncate">${p.name || p.project}</h6><small class="text-muted"><i class="fa-solid fa-map-pin"></i> ม.${p.moo}</small></div><small class="text-muted"><i class="fa-solid fa-building"></i> ${p.authority || p.dept}</small></button>`;
+                listHtml += `<button onclick="openDetailFromStack(${index})" class="list-group-item list-group-item-action p-3 mb-2 border rounded shadow-sm text-start"><div class="d-flex w-100 justify-content-between"><h6 class="mb-1 fw-bold text-primary text-truncate" style="max-width: 200px;">${p.name || p.project}</h6></div><small class="text-muted"><i class="fa-solid fa-building"></i> ${p.dept || p.authority}</small></button>`;
             });
             listHtml += `</div>`;
             content.innerHTML = listHtml;
-            window.currentStack = features;
             document.getElementById('selectionSidebar').classList.add('active');
         }
-        function closeSidebar() { document.getElementById('selectionSidebar').classList.remove('active'); }
-        function openEditModalFromStack(index) { const feature = window.currentStack[index]; closeSidebar(); openEditModalFromFeature(feature); }
-        function openEditModalFromFeature(feature) {
-            const layers = projectLayerGroup.getLayers();
-            const targetId = feature.properties.fid || feature.properties.id;
-            const targetLayer = layers.find(l => { if (!l.feature || !l.feature.properties) return false; return (l.feature.properties.fid || l.feature.properties.id) === targetId; });
-            if (targetLayer) openEditModal(feature, targetLayer);
-            else Swal.fire('Error', 'ไม่พบข้อมูล Layer นี้', 'error');
+
+        function openDetailFromStack(index) { renderDetail(currentStack[index].properties); }
+
+        function renderDetail(props) {
+            const content = document.getElementById('sidebarContent');
+            let budgetHtml = '';
+            if (props.budget_history && props.budget_history.length > 0) {
+                props.budget_history.forEach(b => { const money = new Intl.NumberFormat('th-TH').format(b.amount); budgetHtml += `<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded bg-white"><span class="badge bg-primary">ปี ${b.year}</span><span class="fw-bold text-dark">${money} บาท</span></div>`; });
+            } else { budgetHtml = `<div class="text-center text-muted p-3">ยังไม่มีข้อมูลงบประมาณ</div>`; }
+
+            let backBtn = '';
+            if (currentStack.length > 1) { backBtn = `<button onclick="showStackList(currentStack)" class="btn btn-sm btn-outline-secondary mb-3"><i class="fa-solid fa-arrow-left"></i> กลับไปหน้ารายการ</button>`; }
+
+            content.innerHTML = `
+                ${backBtn}
+                <h4 class="fw-bold text-primary mb-3" style="line-height:1.4;">${props.name || props.project}</h4>
+                <div class="bg-white p-3 rounded shadow-sm border mb-3">
+                    <div class="mb-2"><strong><i class="fa-solid fa-map-pin text-danger me-2"></i>พื้นที่:</strong> หมู่ที่ ${props.moo}</div>
+                    <div class="mb-0"><strong><i class="fa-solid fa-building text-info me-2"></i>หน่วยงาน:</strong> ${props.dept || props.authority}</div>
+                </div>
+                
+                <h6 class="fw-bold mt-2 mb-2 text-secondary">ประวัติงบประมาณ</h6>
+                <div class="bg-light p-2 rounded border mb-4">${budgetHtml}</div>
+
+                <div class="d-grid">
+                    <button class="btn btn-warning fw-bold text-dark py-2" onclick="triggerEditFromSidebar('${props.fid || props.id}')">
+                        <i class="fa-solid fa-pen-to-square me-2"></i>แก้ไขข้อมูล / พื้นที่
+                    </button>
+                </div>
+            `;
+            document.getElementById('selectionSidebar').classList.add('active');
         }
 
+        function triggerEditFromSidebar(fid) {
+            const layer = projectLayerGroup.getLayers().find(l => (l.feature.properties.fid == fid || l.feature.properties.id == fid));
+            if (layer) {
+                closeSidebar();
+                openEditModal(layer.feature, layer);
+            }
+        }
+
+        function closeSidebar() { document.getElementById('selectionSidebar').classList.remove('active'); }
+
         // ==========================================
-        // Edit, Save, Delete Logic
+        // STANDARD FUNCTIONS
         // ==========================================
-        async function openEditModal(feature, layer) {
-            const projectId = feature.properties.fid || feature.properties.id;
-            if (!projectId) return;
+        function getCurrentSnapSettings() {
+            const context = document.getElementById('editGeomControls').style.display === 'flex' ? 'edit' : 'new';
+            const isSnap = document.getElementById(context === 'edit' ? 'snapToggleEdit' : 'snapToggleNew').checked;
+            const dist = parseInt(document.getElementById(context === 'edit' ? 'snapRangeEdit' : 'snapRangeNew').value);
+            return { snappable: isSnap, snapDistance: dist };
+        }
 
-            currentDrawnLayer = layer;
-            document.getElementById('editProjectId').value = projectId;
-            document.getElementById('modalTitle').innerText = 'แก้ไขโครงการ';
-            document.getElementById('btnDelete').style.display = 'block';
+        function syncSnapSettings(context) {
+            const isSnap = document.getElementById(context === 'edit' ? 'snapToggleEdit' : 'snapToggleNew').checked;
+            const dist = parseInt(document.getElementById(context === 'edit' ? 'snapRangeEdit' : 'snapRangeNew').value);
+            document.getElementById(context === 'edit' ? 'snapValEdit' : 'snapValNew').innerText = dist + 'px';
+            map.pm.setGlobalOptions({ snappable: isSnap, snapDistance: dist });
 
-            document.getElementById('inpName').value = feature.properties.project || feature.properties.name || '';
-            document.getElementById('inpMoo').value = feature.properties.moo || 1;
-            document.getElementById('inpDept').value = feature.properties.authority || feature.properties.dept || '';
+            const refreshLayer = (l) => {
+                if (l.pm.enabled()) {
+                    l.pm.disable();
+                    l.pm.enable({ allowSelfIntersection: true, draggable: false, pinning: true, snappable: isSnap, snapDistance: dist });
+                }
+            };
+            tempNewLayersGroup.eachLayer(refreshLayer);
+            tempExtraPartsGroup.eachLayer(refreshLayer);
+            if (currentEditLayer) refreshLayer(currentEditLayer);
+        }
 
-            const container = document.getElementById('budgetList');
-            container.innerHTML = '<div class="text-center p-2"><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดงบประมาณ...</div>';
-            const { data: budgets } = await db.from('project_budgets').select('*').eq('project_id', projectId).order('budget_year', { ascending: true });
-            container.innerHTML = ''; 
-            if (budgets && budgets.length > 0) { budgets.forEach(b => addBudgetRow(b.budget_year, b.amount)); } 
-            else { container.innerHTML = '<div class="text-muted small text-center p-2 border border-dashed rounded">ยังไม่มีข้อมูลงบประมาณ</div>'; }
+        function setupFocusClick(layer) {
+            layer.on('click', (e) => {
+                if (!isManualMode) return;
+                L.DomEvent.stopPropagation(e);
+                const snapOpts = getCurrentSnapSettings();
+                if (currentEditLayer) currentEditLayer.pm.disable();
+                tempExtraPartsGroup.eachLayer(l => l.pm.disable());
+                tempNewLayersGroup.eachLayer(l => l.pm.disable());
+                layer.pm.enable({ allowSelfIntersection: true, draggable: false, pinning: true, ...snapOpts });
+            });
+        }
+
+        function getRandomColor() {
+            const colors = ['#e040fb', '#00e676', '#ffea00', '#ff3d00', '#2979ff', '#f50057','#005F02','#C0B87A','#F075AE','#26CCC2','#001BB7','#7B542F','#2D4F2B'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function startGeometryEdit() {
+            if (!currentEditLayer) return;
+            
+            // 1. รีเซ็ตยางลบ
+            resetEraserTool();
+
+            isManualMode = true;
+            bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide();
+
+            // Backup ข้อมูลเดิม
+            originalGeoJSONBackup = currentEditLayer.toGeoJSON();
+            originalStyleBackup = { ...currentEditLayer.options };
+
+            const geoJson = currentEditLayer.toGeoJSON();
+            const props = geoJson.properties || {};
+
+            // ลบ Layer รวมออกจากแผนที่ (เพื่อแตกเป็นชิ้นๆ)
+            projectLayerGroup.removeLayer(currentEditLayer);
+
+            // แตก Multi-Geometry เป็น Feature เดี่ยวๆ
+            let features = [];
+            if (geoJson.geometry.type === 'LineString' || geoJson.geometry.type === 'Polygon' || geoJson.geometry.type === 'Point') {
+                features.push(geoJson);
+            } else if (geoJson.geometry.type.includes('Multi')) {
+                const type = geoJson.geometry.type.replace('Multi', '');
+                geoJson.geometry.coordinates.forEach(coords => {
+                    features.push({ type: 'Feature', properties: geoJson.properties, geometry: { type: type, coordinates: coords } });
+                });
+            }
+
+            // วนลูปสร้าง Layer สำหรับแก้ไข
+            features.forEach(feature => {
+                let tempLayer;
+                
+                // ค่าสีจาก Database (เอาไว้ใช้กับ Point)
+                const dbIcon = feature.properties.icon || '&#xF3E7;';
+                const dbColor = feature.properties.color || '#ffc107';
+
+                if (feature.geometry.type === 'Point') {
+                    // ✅ กรณีเป็น "จุด": ใช้สีเดิมจาก Database (ตามที่คุณขอ)
+                    tempLayer = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], { 
+                        icon: getCustomIcon(dbIcon, dbColor), 
+                        draggable: true 
+                    });
+                } else {
+                    // ✅ กรณีเป็น "เส้น/พื้นที่": ใช้การสุ่มสี (Random) เพื่อให้แยกชิ้นส่วนง่าย
+                    // (ใช้ getRandomColor() สำหรับแต่ละชิ้นแยกกันเลย)
+                    const randomColor = getRandomColor();
+                    
+                    tempLayer = L.geoJSON(feature, { 
+                        style: { color: randomColor, weight: 4, dashArray: "10, 5" } 
+                    }).getLayers()[0];
+                    tempLayer.pm.enable({ draggable: true, snappable: true });
+                }
+                
+                setupEditableLayer(tempLayer);
+                tempExtraPartsGroup.addLayer(tempLayer);
+                tempLayer.addTo(map);
+            });
+
+            // คืนค่า "สีจริง" ใส่กลับเข้าไปในช่อง Input (เพื่อให้ตอนกด Save สียังคงถูกต้องตาม DB)
+            document.getElementById('iconInputEdit').value = props.icon || '&#xF3E7;';
+            document.getElementById('colorInputEdit').value = props.color || '#ffc107';
+
+            document.getElementById('editGeomControls').style.display = 'flex';
+        }
+
+        function drawNextPart(context) {
+            tempExtraPartsGroup.eachLayer(l => l.pm.disable());
+            tempNewLayersGroup.eachLayer(l => l.pm.disable());
+            const snapOpts = getCurrentSnapSettings();
+
+            let type = 'Line';
+            let targetGroup = null;
+
+            if (tempExtraPartsGroup.getLayers().length > 0) targetGroup = tempExtraPartsGroup;
+            else if (tempNewLayersGroup.getLayers().length > 0) targetGroup = tempNewLayersGroup;
+
+            if (targetGroup) {
+                const l = targetGroup.getLayers()[0];
+                if (l instanceof L.Marker) type = 'Marker';
+                else if (l instanceof L.Polygon) type = 'Polygon';
+                else if (l instanceof L.Polyline) type = 'Line';
+            }
+
+            // 1. 🔥 FIX: เตรียมค่าสีและไอคอนให้พร้อมก่อนเริ่มวาด
+            const isEditMode = document.getElementById('editGeomControls').style.display === 'flex';
+            
+            const iconCode = isEditMode 
+                ? document.getElementById('iconInputEdit').value 
+                : document.getElementById('iconInputNew').value;
+            
+            const colorCode = isEditMode 
+                ? document.getElementById('colorInputEdit').value 
+                : document.getElementById('colorInputNew').value;
+
+            // ตั้งค่าพื้นฐาน
+            const options = {
+                pinning: true,
+                snappable: snapOpts.snappable,
+                snapDistance: snapOpts.snapDistance
+            };
+
+            if (type === 'Marker') {
+                // 🔥 FIX: ส่ง colorCode เข้าไปใน getCustomIcon ด้วย (สำคัญ!)
+                const customIcon = getCustomIcon(iconCode, colorCode);
+
+                options.markerStyle = { icon: customIcon };      
+                options.hintMarkerStyle = { icon: customIcon };  
+            } else {
+                // ตั้งค่าสำหรับ เส้น/พื้นที่
+                options.finishOn = 'dblclick';
+                options.allowSelfIntersection = true;
+                
+                // 🔥 FIX: ใช้สีที่เลือกกับเส้นร่างด้วย (ไม่ใช่สีเขียว hardcode)
+                options.templineStyle = { color: colorCode, dashArray: "5, 5" };
+                options.hintlineStyle = { color: colorCode, dashArray: "5, 5" };
+            }
+
+            map.pm.enableDraw(type, options);
+        }
+
+        function cancelGeometryEdit() {
+            tempExtraPartsGroup.clearLayers();
+            map.pm.disableDraw();
+            map.pm.disableGlobalRemovalMode();
+            document.getElementById('editGeomControls').style.display = 'none';
+
+            resetEraserTool();
+
+            if (originalGeoJSONBackup) {
+                // ... (Logic ลบ Layer ปัจจุบันทิ้ง เหมือนเดิม) ...
+                if (currentEditLayer && projectLayerGroup.hasLayer(currentEditLayer)) {
+                    projectLayerGroup.removeLayer(currentEditLayer);
+                }
+
+                // ... (Logic กู้คืน Layer เดิม เหมือนเดิม) ...
+                const restoredLayer = L.geoJSON(originalGeoJSONBackup, {
+                    style: (f) => ({ color: f.properties.color || '#ffc107', weight: f.geometry.type.includes('Line') ? 6 : 2, opacity: 0.9 }),
+                    interactive: true,
+                    pointToLayer: (f, latlng) => {
+                        const iconCode = f.properties.icon || 'default';
+                        const colorCode = f.properties.color || '#ffc107';
+                        const marker = L.marker(latlng, { icon: getCustomIcon(iconCode, colorCode) });
+                        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                        return marker;
+                    },
+                    onEachFeature: (f, l) => { l.on('click', (e) => { handleStackClick(e); }); }
+                }).getLayers()[0];
+                
+                currentEditLayer = restoredLayer;
+                projectLayerGroup.addLayer(currentEditLayer);
+
+                // 🔥 FIX: คืนค่า Input (ไอคอน/สี) ให้ตรงกับของเดิม (Backup) ทันที
+                // (เผื่อกรณี User เปิดมาแก้ใหม่ จะได้เห็นค่าเดิมที่ถูกต้อง ไม่ใช่ค่าที่แก้ค้างไว้)
+                const oldProps = originalGeoJSONBackup.properties || {};
+                document.getElementById('iconInputEdit').value = oldProps.icon || '&#xF3E7;';
+                document.getElementById('colorInputEdit').value = oldProps.color || '#ffc107';
+            }
+            
+            isManualMode = false;
             new bootstrap.Modal(document.getElementById('projectFormModal')).show();
         }
 
-        function addBudgetRow(year = '', amount = '') {
-            const container = document.getElementById('budgetList');
-            if(container.querySelector('.text-muted')) container.innerHTML = '';
-            const newRow = document.createElement('div');
-            newRow.className = 'row g-2 mb-2 budget-row';
-            newRow.innerHTML = `<div class="col-5"><input type="number" class="form-control inp-year" placeholder="ปี" value="${year}"></div><div class="col-5"><input type="number" class="form-control inp-amount" placeholder="บาท" value="${amount}"></div><div class="col-2"><button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)"><i class="fa-solid fa-trash"></i></button></div>`;
-            container.appendChild(newRow);
-        }
-        function removeRow(btn) { btn.closest('.budget-row').remove(); }
-        function resetBudgetForm() { document.getElementById('budgetList').innerHTML = ''; addBudgetRow(2567, ''); document.getElementById('newProjectForm').reset(); }
+        // 1. Generate Icon from Unicode
+        function getCustomIcon(code, color) {
+            // Default Values
+            if (!code || code === 'default') code = '&#xF3E7;';
+            if (!color) color = '#ffc107';
 
-        async function saveProject() {
-            const projectId = document.getElementById('editProjectId').value;
-            const name = document.getElementById('inpName').value;
-            const moo = document.getElementById('inpMoo').value;
-            const dept = document.getElementById('inpDept').value;
-            const budgetRows = document.querySelectorAll('.budget-row');
-            let budgets = [];
-            budgetRows.forEach(row => {
-                const y = row.querySelector('.inp-year').value;
-                let a = row.querySelector('.inp-amount').value;
-                if (y) { budgets.push({ budget_year: parseInt(y), amount: a ? parseFloat(a) : 0 }); }
+            return L.divIcon({
+                className: 'custom-div-icon',
+                // ใช้ทั้ง Unicode และ Color ในการสร้างไอคอน
+                html: `<div class="custom-marker-icon" style="width:30px;height:30px; background:${color};">${code}</div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+        }
+        // 2. 🔥 Real-time Preview Function (Called by Input oninput)
+        // 1. รับค่า Color เพิ่มเข้ามา
+        function getCustomIcon(code, color) {
+            if (!code || code === 'default') code = '&#xF3E7;';
+            if (!color) color = '#ffc107'; // Default Yellow
+
+            return L.divIcon({
+                className: 'custom-div-icon',
+                // 🔥 FIX: ใช้ค่า color ใน style background
+                html: `<div class="custom-marker-icon" style="width:30px;height:30px; background:${color};">${code}</div>`,
+                iconSize: [30, 30],
+                iconAnchor: [15, 15]
+            });
+        }
+
+        // 2. 🔥 เปลี่ยนชื่อฟังก์ชันเป็น updateRealtimeStyle (รวมสี+ไอคอน)
+        function updateRealtimeStyle(context) {
+            // 1. Get Values
+            const iconId = context === 'edit' ? 'iconInputEdit' : 'iconInputNew';
+            const colorId = context === 'edit' ? 'colorInputEdit' : 'colorInputNew';
+            
+            // Safety check if elements exist
+            const iconEl = document.getElementById(iconId);
+            const colorEl = document.getElementById(colorId);
+            if (!iconEl || !colorEl) return;
+
+            const iconVal = iconEl.value;
+            const colorVal = colorEl.value;
+
+            // 2. Identify which group to update
+            const group = (context === 'edit') ? tempExtraPartsGroup : tempNewLayersGroup;
+            
+            // 3. 🔥 FIX: Loop through EXISTING layers and update them
+            group.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    // Update Marker Icon
+                    layer.setIcon(getCustomIcon(iconVal, colorVal));
+                } else {
+                    // Update Line/Polygon Color
+                    layer.setStyle({ color: colorVal });
+                }
             });
 
-            if (!name) { Swal.fire('เตือน', 'กรุณากรอกชื่อโครงการ', 'warning'); return; }
+            // 4. Update the Cursor (for the NEXT click)
+            const newIcon = getCustomIcon(iconVal, colorVal);
+            map.pm.setGlobalOptions({
+                markerStyle: { icon: newIcon },
+                hintMarkerStyle: { icon: newIcon },
+                templineStyle: { color: colorVal },
+                hintlineStyle: { color: colorVal, dashArray: [5, 5] }
+            });
+        }
+
+        function finishGeometryEdit() {
+            const layers = tempExtraPartsGroup.getLayers();
+            const activeLayers = layers.filter(l => map.hasLayer(l));
+
+            if (activeLayers.length > 0) {
+                // ... (Logic รวม Geometry เหมือนเดิม) ...
+                const firstGeo = activeLayers[0].toGeoJSON();
+                const type = firstGeo.geometry.type;
+                let newType;
+                let allCoords = [];
+
+                if (type === 'Point') { newType = 'MultiPoint'; activeLayers.forEach(l => allCoords.push(l.toGeoJSON().geometry.coordinates)); }
+                else if (type === 'LineString') { newType = 'MultiLineString'; activeLayers.forEach(l => allCoords.push(l.toGeoJSON().geometry.coordinates)); }
+                else { newType = 'MultiPolygon'; activeLayers.forEach(l => allCoords.push(l.toGeoJSON().geometry.coordinates)); }
+
+                const newGeoJSON = { type: 'Feature', geometry: { type: newType, coordinates: allCoords }, properties: currentEditLayer.feature.properties };
+                const currentIcon = document.getElementById('iconInputEdit').value;
+                const currentColor = document.getElementById('colorInputEdit').value;
+
+                const newLayer = L.geoJSON(newGeoJSON, {
+                    style: { color: currentColor, weight: (newType.includes('Line') ? 6 : 2), opacity: 0.9 },
+                    interactive: true,
+                    pointToLayer: (f, latlng) => {
+                        const marker = L.marker(latlng, { icon: getCustomIcon(currentIcon, currentColor) });
+                        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                        return marker;
+                    },
+                    onEachFeature: (f, l) => { if (f.geometry.type !== 'Point') l.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); }); }
+                });
+
+                currentEditLayer = newLayer.getLayers()[0];
+                projectLayerGroup.addLayer(currentEditLayer);
+            } else {
+                cancelGeometryEdit();
+                return; 
+            }
+
+            tempExtraPartsGroup.clearLayers();
+            if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
+
+            // 🔥 FIX: รีเซ็ตยางลบ
+            resetEraserTool();
+            isManualMode = false;
+
+            document.getElementById('editGeomControls').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('projectFormModal')).show();
+
+            document.getElementById("iconInputNew").value = "&#xF3E7;";
+            initAdminTools();
+        }
+
+
+        function setupEditableLayer(layer) {
+            // ลบ event click เดิมออกก่อน (กันซ้ำ)
+            layer.off('click');
+            
+            // ใส่ event click ใหม่
+            layer.on('click', (e) => {
+                // 1. ถ้าถือยางลบอยู่
+                if (isEraserActive) {
+                    L.DomEvent.stopPropagation(e); // ห้ามทะลุไปโดนแผนที่
+                    
+                    // 2. เช็คว่าอยู่ในกลุ่มที่เรากำลังแก้ไหม? (Extra หรือ New)
+                    if (tempExtraPartsGroup.hasLayer(layer)) {
+                        tempExtraPartsGroup.removeLayer(layer);
+                        map.removeLayer(layer);
+                    } 
+                    else if (tempNewLayersGroup.hasLayer(layer)) {
+                        tempNewLayersGroup.removeLayer(layer);
+                        map.removeLayer(layer);
+                        updateNewProjectButtons(); // อัปเดตตัวเลขจำนวน
+                    }
+                    // ถ้าไม่อยู่ใน 2 กลุ่มนี้ (เช่น เป็น projectLayerGroup ของคนอื่น) -> ไม่ทำอะไรเลย (ปลอดภัย!)
+                } 
+                // 3. ถ้าไม่ได้ถือยางลบ -> ให้ทำงานปกติ (เช่น Focus เพื่อวาดต่อ)
+                else {
+                     // ใส่ Logic การ Focus กลับเข้าไป (ถ้ามี)
+                     // หรือปล่อยว่างไว้ถ้าในโหมด Edit เราไม่ได้ต้องการให้คลิกอะไรพิเศษ
+                }
+            });
+        }
+
+        function resetEraserTool() {
+            // 1. Reset logic state
+            isEraserActive = false;
+            
+            // 2. Remove UI Active Class from all eraser buttons
+            document.querySelectorAll('.btn-eraser').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // 3. Remove Map Cursor CSS
+            map.getContainer().classList.remove('eraser-cursor');
+
+            // 4. Disable Geoman Global Removal (Just in case)
+            if (map.pm.globalRemovalModeEnabled()) {
+                map.pm.disableGlobalRemovalMode();
+            }
+        }
+
+        function toggleEraserMode(btn) {
+            // สลับสถานะ
+            isEraserActive = !isEraserActive;
+            
+            // ถ้าเปิดยางลบ
+            if (isEraserActive) {
+                btn.classList.add('active');
+                map.getContainer().classList.add('eraser-cursor'); // เปลี่ยนเมาส์เป็นกากบาท (ถ้ามี css)
+                
+                // ⛔ ปิด Global Removal ของ Geoman ทิ้งไปเลย กันพลาด
+                if (map.pm.globalRemovalModeEnabled()) {
+                    map.pm.disableGlobalRemovalMode();
+                }
+            } else {
+                // ถ้าปิดยางลบ
+                btn.classList.remove('active');
+                map.getContainer().classList.remove('eraser-cursor');
+            }
+        }
+
+        function updateNewProjectButtons() {
+            const count = tempNewLayersGroup.getLayers().length;
+            const container = document.getElementById('newProjectActions');
+            const countEl = document.getElementById('drawCount');
+            if (countEl) countEl.innerText = count;
+
+            if (count > 0) { container.style.display = 'flex'; isManualMode = true; } else { container.style.display = 'none'; }
+        }
+
+        function finishNewProjectDrawing() {
+            if (tempNewLayersGroup.getLayers().length === 0) return;
+            map.pm.disableGlobalRemovalMode();
+            tempNewLayersGroup.getLayers().forEach(l => l.pm.disable());
+            
+            // 🔥 FIX: รีเซ็ตยางลบ
+            resetEraserTool();
+
+            resetBudgetForm();
+            document.getElementById('editProjectId').value = '';
+            document.getElementById('modalTitle').innerText = 'เพิ่มโครงการใหม่';
+            document.getElementById('btnDelete').style.display = 'none';
+            document.getElementById('btnStartEditGeom').style.display = 'none';
+            new bootstrap.Modal(document.getElementById('projectFormModal')).show();
+
+        }
+
+        function cancelNewProjectDrawing() {
+            Swal.fire({ title: 'ยกเลิกการวาด?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ใช่' }).then((r) => {
+                if (r.isConfirmed) { 
+                    tempNewLayersGroup.clearLayers(); 
+                    updateNewProjectButtons(); 
+                    
+                    // 🔥 FIX: รีเซ็ตยางลบ
+                    resetEraserTool();
+                    isManualMode = false; 
+                    
+                    map.pm.disableGlobalRemovalMode(); 
+                }
+            });
+            document.getElementById("iconInputNew").value = "&#xF3E7;";
+        }
+
+        function cancelModal() {
+
+            if (originalGeoJSONBackup) {
+                // ... (Logic ลบ Layer ปัจจุบันทิ้ง เหมือนเดิม) ...
+                if (currentEditLayer && projectLayerGroup.hasLayer(currentEditLayer)) {
+                    projectLayerGroup.removeLayer(currentEditLayer);
+                }
+
+                // ... (Logic กู้คืน Layer เดิม เหมือนเดิม) ...
+                const restoredLayer = L.geoJSON(originalGeoJSONBackup, {
+                    style: (f) => ({ color: f.properties.color || '#ffc107', weight: f.geometry.type.includes('Line') ? 6 : 2, opacity: 0.9 }),
+                    interactive: true,
+                    pointToLayer: (f, latlng) => {
+                        const iconCode = f.properties.icon || 'default';
+                        const colorCode = f.properties.color || '#ffc107';
+                        const marker = L.marker(latlng, { icon: getCustomIcon(iconCode, colorCode) });
+                        marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                        return marker;
+                    },
+                    onEachFeature: (f, l) => { l.on('click', (e) => { handleStackClick(e); }); }
+                }).getLayers()[0];
+                
+                currentEditLayer = restoredLayer;
+                projectLayerGroup.addLayer(currentEditLayer);
+
+                // 🔥 FIX: คืนค่า Input (ไอคอน/สี) ให้ตรงกับของเดิม (Backup) ทันที
+                // (เผื่อกรณี User เปิดมาแก้ใหม่ จะได้เห็นค่าเดิมที่ถูกต้อง ไม่ใช่ค่าที่แก้ค้างไว้)
+                const oldProps = originalGeoJSONBackup.properties || {};
+                document.getElementById('iconInputEdit').value = oldProps.icon || '&#xF3E7;';
+                document.getElementById('colorInputEdit').value = oldProps.color || '#ffc107';
+            }
+            // 1. ซ่อน Modal
+            const modalEl = document.getElementById('projectFormModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+
+            const pid = document.getElementById('editProjectId').value;
+
+            // 2. เช็คว่าเป็นโหมดไหน?
+            if (pid) {
+                // ============ 🟡 โหมดแก้ไข (EDIT MODE) ============
+                
+                // ถ้าเครื่องมือวาดค้างอยู่ ให้ยกเลิกการวาด
+                if (document.getElementById('editGeomControls').style.display === 'flex') {
+                    cancelGeometryEdit();
+                } 
+                // ถ้าไม่ได้เปิดเครื่องมือวาด (แก้แค่ชื่อ/ข้อมูล) ต้องคืนค่า Input กลับเป็นค่าเดิมจาก DB
+                else if (currentEditLayer && currentEditLayer.feature && currentEditLayer.feature.properties) {
+                    const props = currentEditLayer.feature.properties;
+                    document.getElementById('iconInputEdit').value = props.icon || '&#xF3E7;';
+                    document.getElementById('colorInputEdit').value = props.color || '#ffc107';
+                    
+                    // อัปเดตเคอร์เซอร์ให้กลับมาเหมือนเดิม
+                    if(typeof updateRealtimeStyle === 'function') updateRealtimeStyle('edit');
+                }
+
+            } else {
+                // ============ 🟢 โหมดเพิ่มใหม่ (ADD MODE) ============
+                
+                // 🔥 FIX: สั่งลบจุดทิ้งให้หมด (Clear Layers) เพราะ User ไม่ได้กดบันทึก
+                tempNewLayersGroup.clearLayers();
+                
+                // อัปเดตตัวเลขบนปุ่มเครื่องมือให้เหลือ 0
+                updateNewProjectButtons();
+                
+                // รีเซ็ตค่าสี/ไอคอน กลับเป็น Default
+                if(typeof resetNewProjectInputs === 'function') resetNewProjectInputs();
+                
+                isManualMode = false;
+            }
+            
+            // ล้างสถานะยางลบ
+            if(typeof resetEraserTool === 'function') resetEraserTool();
+        }
+
+        async function openEditModal(f, l) {
+            if (isManualMode) return;
+            const pid = f.properties.fid || f.properties.id; if (!pid) return;
+            currentEditLayer = l;
+            document.getElementById('editProjectId').value = pid;
+            document.getElementById('modalTitle').innerText = 'แก้ไขโครงการ';
+            document.getElementById('btnDelete').style.display = 'block';
+            document.getElementById('btnStartEditGeom').style.display = 'flex';
+
+            document.getElementById('inpName').value = f.properties.project || f.properties.name || '';
+            document.getElementById('inpMoo').value = f.properties.moo || 1;
+            document.getElementById('inpDept').value = f.properties.authority || f.properties.dept || '';
+
+            const box = document.getElementById('budgetList'); box.innerHTML = '';
+            const { data } = await db.from('project_budgets').select('*').eq('project_id', pid).order('budget_year');
+            if (data && data.length) data.forEach(b => addBudgetRow(b.budget_year, b.amount)); else addBudgetRow(2567, '');
+            new bootstrap.Modal(document.getElementById('projectFormModal')).show();
+        }
+
+        async function saveProject() {
+            const pid = document.getElementById('editProjectId').value;
+            
+            // 1. ระบุ Context ว่า Save จากหน้าไหน (New หรือ Edit)
+            const context = pid ? 'Edit' : 'New';
+            
+            // 2. ดึงค่าจาก Panel ที่ถูกต้อง
+            const icon = document.getElementById('iconInput' + context).value;
+            const color = document.getElementById('colorInput' + context).value;
+
+            const name = document.getElementById('inpName').value; 
+            const moo = document.getElementById('inpMoo').value; 
+            const dept = document.getElementById('inpDept').value;
+            
+            let budgets = []; 
+            document.querySelectorAll('.budget-row').forEach(row => { 
+                const y = row.querySelector('.inp-year').value; 
+                const a = row.querySelector('.inp-amount').value; 
+                if (y) budgets.push({ budget_year: parseInt(y), amount: a ? parseFloat(a) : 0 }); 
+            });
+
+            if (!name) { Swal.fire('เตือน', 'กรุณากรอกชื่อ', 'warning'); return; }
             Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
 
             try {
-                const geometry = currentDrawnLayer.toGeoJSON().geometry;
-                let savedId = projectId;
+                let geometry;
+                if (pid) {
+                    const geojson = currentEditLayer.toGeoJSON();
+                    if (geojson.features && geojson.features.length > 0) {
+                        geometry = geojson.features[0].geometry;
+                    } else {
+                        geometry = geojson.geometry;
+                    }
+                } else {
+                    const layers = tempNewLayersGroup.getLayers();
+                    const geojsons = layers.map(l => l.toGeoJSON());
+                    if (layers.length === 1) geometry = geojsons[0].geometry;
+                    else {
+                        const type = geojsons[0].geometry.type;
+                        const coords = geojsons.map(g => g.geometry.coordinates);
+                        if (type === 'LineString') geometry = { type: 'MultiLineString', coordinates: coords };
+                        else if (type === 'Polygon') geometry = { type: 'MultiPolygon', coordinates: coords };
+                        else geometry = { type: 'MultiPoint', coordinates: coords };
+                    }
+                }
 
-                if (!projectId) {
-                    const { data, error } = await db.from('sanklang_projects').insert([{ project: name, moo: parseInt(moo), authority: dept, geom: geometry }]).select().single();
+                let savedId = pid;
+                // สร้าง Payload ที่มีทั้ง icon และ color
+                const payload = { 
+                    project: name, 
+                    moo: parseInt(moo), 
+                    authority: dept, 
+                    geom: geometry,
+                    icon: icon,   // บันทึกไอคอน
+                    color: color  // บันทึกสี
+                };
+
+                if (!pid) {
+                    const { data, error } = await db.from('sanklang_projects').insert([payload]).select().single();
                     if (error) throw error; savedId = data.fid;
                 } else {
-                    const { error } = await db.from('sanklang_projects').update({ project: name, moo: parseInt(moo), authority: dept, geom: geometry }).eq('fid', projectId);
+                    const { error } = await db.from('sanklang_projects').update(payload).eq('fid', pid);
                     if (error) throw error;
-                    await db.from('project_budgets').delete().eq('project_id', projectId);
+                    await db.from('project_budgets').delete().eq('project_id', pid);
                 }
 
                 if (budgets.length > 0) {
                     const budgetPayload = budgets.map(b => ({ ...b, project_id: savedId }));
-                    const { error } = await db.from('project_budgets').insert(budgetPayload);
-                    if (error) throw error;
+                    await db.from('project_budgets').insert(budgetPayload);
                 }
 
-                Swal.fire('สำเร็จ', 'บันทึกข้อมูลเรียบร้อย', 'success');
+                Swal.fire('สำเร็จ', 'บันทึกเรียบร้อย', 'success');
                 bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide();
-                if (!projectId) map.removeLayer(currentDrawnLayer); 
-                loadExistingProjects(); 
-            } catch (err) { console.error(err); Swal.fire('Error', err.message, 'error'); }
+                tempNewLayersGroup.clearLayers();
+                updateNewProjectButtons();
+                loadExistingProjects();
+                isManualMode = false;
+            } catch (e) { console.error(e); Swal.fire('Error', e.message, 'error'); }
         }
 
-        async function deleteProject() {
-            const projectId = document.getElementById('editProjectId').value;
-            if (!projectId) return;
-            const result = await Swal.fire({ title: 'ยืนยันการลบ?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบทิ้ง' });
-            if (result.isConfirmed) {
-                Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
-                const { error } = await db.from('sanklang_projects').delete().eq('fid', projectId);
-                if (error) Swal.fire('Error', error.message, 'error');
-                else { Swal.fire('ลบแล้ว', 'โครงการถูกลบออกจากระบบ', 'success'); bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide(); loadExistingProjects(); }
-            }
+        function addBudgetRow(y = '', a = '') {
+            const div = document.createElement('div'); div.className = 'row g-2 mb-2 budget-row';
+            div.innerHTML = `<div class="col-5"><input type="number" class="form-control inp-year" value="${y}" placeholder="ปี"></div><div class="col-5"><input type="number" class="form-control inp-amount" value="${a}" placeholder="บาท"></div><div class="col-2"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()"><i class="fa-solid fa-trash"></i></button></div>`;
+            document.getElementById('budgetList').appendChild(div);
         }
-        function cancelDrawing() {
-            const projectId = document.getElementById('editProjectId').value;
-            if (!projectId && currentDrawnLayer) map.removeLayer(currentDrawnLayer);
-            bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide();
-        }
+        function resetBudgetForm() { document.getElementById('budgetList').innerHTML = ''; addBudgetRow(2567, ''); document.getElementById('newProjectForm').reset(); }
+        async function deleteProject() { const pid = document.getElementById('editProjectId').value; if (await Swal.fire({ title: 'ยืนยันลบ?', icon: 'warning', showCancelButton: true }).then(r => r.isConfirmed)) { await db.from('sanklang_projects').delete().eq('fid', pid); bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide(); loadExistingProjects(); isManualMode = false; } }
 
-        // ==========================================
-        // Load & Helpers
-        // ==========================================
         async function loadExistingProjects() {
-            const { data, error } = await db.rpc('get_map_data');
+            projectLayerGroup.clearLayers(); const { data } = await db.rpc('get_map_data');
             if (data && data.features) {
-                allFeatures = data.features;
+                allFeatures = data.features; const yearsSet = new Set();
+                allFeatures.forEach(f => { if (f.properties.budget_history) f.properties.budget_history.forEach(b => yearsSet.add(b.year)); });
+                const sortedYears = Array.from(yearsSet).sort(); const yearSelect = document.getElementById('filterYear');
+                yearSelect.innerHTML = '<option value="all">-- ทุกปีงบประมาณ --</option>'; sortedYears.forEach(y => { const option = document.createElement('option'); option.value = y; option.textContent = `พ.ศ. ${y}`; yearSelect.appendChild(option); });
+                applyFilters();
+            }
+        }
+        function applyFilters() {
+            const kw = document.getElementById('sidebarSearch').value.toLowerCase().split(' ').filter(x => x);
+            const yr = document.getElementById('filterYear').value; const mo = document.getElementById('filterMoo').value;
+            const filtered = allFeatures.filter(f => {
+                const p = f.properties; const name = (p.project || p.name || '').toLowerCase();
+                return (kw.length === 0 || kw.every(k => name.includes(k))) && (mo === 'all' || p.moo == mo) && (yr === 'all' || (p.budget_history && p.budget_history.some(b => b.year == yr)));
+            });
+            filteredFeaturesGlobal = filtered; renderFilteredLayers(filtered); renderFilteredList(filtered); document.getElementById('resultCount').innerText = `พบ ${filtered.length} โครงการ`;
+        }
+        function renderFilteredLayers(features) {
+            projectLayerGroup.clearLayers();
+            const tempLayer = L.geoJSON(features, {
+                interactive: true,
                 
-                const yearsSet = new Set();
-                allFeatures.forEach(f => { if (f.properties.budget_history) { f.properties.budget_history.forEach(b => yearsSet.add(b.year)); } });
-                const sortedYears = Array.from(yearsSet).sort();
-                const yearSelect = document.getElementById('filterYear');
-                yearSelect.innerHTML = '<option value="all">-- ทุกปีงบประมาณ --</option>'; 
-                sortedYears.forEach(y => { const option = document.createElement('option'); option.value = y; option.textContent = `พ.ศ. ${y}`; yearSelect.appendChild(option); });
-
-                applyFilters(); // Initial Render
-            }
+                // 🔥 FIX: สำหรับเส้นและ Polygon ให้ใช้สีสุ่ม (Random) เพื่อให้แยกแยะง่าย
+                style: f => ({ 
+                    color: getRandomColor(), // <-- เปลี่ยนตรงนี้เป็นสุ่มสี
+                    weight: f.geometry.type.includes('Line') ? 6 : 2, 
+                    opacity: 0.9,
+                    fillOpacity: 0.4 // เพิ่มความโปร่งแสงให้ดูสวยขึ้น
+                }),
+                
+                // 🔥 ส่วนจุด (Marker) ยังคงใช้สีจาก Database เหมือนเดิม
+                pointToLayer: (feature, latlng) => {
+                    const iconCode = feature.properties.icon || 'default';
+                    const colorCode = feature.properties.color || '#ffc107'; // ยังใช้สีจาก DB
+                    
+                    const marker = L.marker(latlng, { icon: getCustomIcon(iconCode, colorCode) });
+                    marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                    return marker;
+                },
+                
+                onEachFeature: (f, l) => {
+                    if (f.geometry.type !== 'Point') {
+                        l.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
+                    }
+                }
+            });
+            tempLayer.eachLayer(l => projectLayerGroup.addLayer(l));
         }
+        function renderFilteredList(features) {
+            const box = document.getElementById('sidebarList'); box.innerHTML = '';
+            features.forEach((f, i) => {
+                const div = document.createElement('div'); div.className = 'result-item';
+                div.innerHTML = `<div class="fw-bold text-primary text-truncate">${f.properties.name || f.properties.project}</div><small class="text-muted">ม.${f.properties.moo} | ${f.properties.authority || f.properties.dept}</small>`;
+                div.onclick = () => {
+                    const target = projectLayerGroup.getLayers().find(l => (l.feature.properties.fid || l.feature.properties.id) == (f.properties.fid || f.properties.id));
+                    if (target) {
+                        if (target.getBounds) map.flyTo(target.getBounds().getCenter(), 18); else map.flyTo(target.getLatLng(), 18);
+                        openSidebar([f]);
+                    }
+                };
+                box.appendChild(div);
+            });
+        }
+        function toggleListSidebar() { document.getElementById('listSidebar').classList.toggle('active'); }
+        function closeSidebar() { document.getElementById('selectionSidebar').classList.remove('active'); }
 
-        function toggleLayerCard() { document.getElementById('layerCard').classList.toggle('hidden'); }
+        // 🔥 FIX SHARE EYE BUG: Separate toggles completely
         function toggleLayer(type, element) {
-            var targetLayer;
-            if (type === 'project') targetLayer = projectLayerGroup;
-            if (type === 'moo') targetLayer = mooLayer;
-            if (type === 'boundary') targetLayer = boundaryLayer;
-            if (targetLayer) {
-                var icon = element.querySelector('.eye-icon');
-                if (map.hasLayer(targetLayer)) { map.removeLayer(targetLayer); icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash', 'disabled'); }
-                else { map.addLayer(targetLayer); icon.classList.remove('fa-eye-slash', 'disabled'); icon.classList.add('fa-eye'); }
+            let target;
+            if (type === 'project') target = projectLayerGroup;
+            else if (type === 'moo') target = mooLayer;
+            else if (type === 'boundary') target = boundaryLayer;
+            else if (type === 'soi') target = soiLayer;
+
+            if (target) {
+                var icon = element.querySelector('i.fa-eye') || element.querySelector('i.fa-eye-slash');
+                if (map.hasLayer(target)) {
+                    map.removeLayer(target);
+                    if (icon) { icon.className = 'fa-solid fa-eye-slash text-muted eye-icon'; }
+                } else {
+                    map.addLayer(target);
+                    if (icon) { icon.className = 'fa-solid fa-eye text-primary eye-icon'; }
+                }
             }
         }
-        async function loadMoo() { try { const { data, error } = await db.rpc('get_moo_boundary'); if (!error) mooLayer = L.geoJSON(data, { interactive: false, style: { color: "#1976d2", weight: 2, opacity: 0.8, fillColor: "#bbdefb", fillOpacity: 0.1, dashArray: '5, 5' }, onEachFeature: (f, l) => l.bindTooltip(`หมู่ ${f.properties.moo_no}`, { permanent: true, direction: "center", className: "moo-label" }) }).addTo(map); } catch (err) {} }
-        async function loadBoundary() { try { const { data, error } = await db.rpc('get_tambon_boundary'); if (!error) boundaryLayer = L.geoJSON(data, { interactive: false, style: { color: "#d32f2f", weight: 4, fillOpacity: 0, dashArray: '10, 5' } }).addTo(map); } catch (err) {} }
+
+        // 🔥 FIX SOI: Use New RPC Function + DEFAULT HIDDEN & CLEAN STYLE
+        async function loadSoi() {
+            try {
+                const { data, error } = await db.rpc('get_sanklang_soi_final');
+                if (data) {
+                    soiLayer = L.geoJSON(data, {
+                        interactive: false,
+                        pane: 'soiPane',
+                        // 🔥 Default Hidden: DO NOT .addTo(map)
+                        style: { color: "#6c757d", weight: 2, opacity: 0.6 } // Solid line (no dash), clean gray
+                    });
+                    // Removed map.fitBounds(soiLayer.getBounds());
+                    console.log("Soi Layer Loaded:", data.length);
+                }
+            } catch (e) { console.error("Soi load error:", e); }
+        }
+
+        async function loadMoo() { try { const { data } = await db.rpc('get_moo_boundary'); if (data) mooLayer = L.geoJSON(data, { interactive: false, style: { color: "#1976d2", fillOpacity: 0.1, dashArray: '5,5' }, onEachFeature: (f, l) => l.bindTooltip(`หมู่ ${f.properties.moo_no}`, { permanent: true, direction: "center" }) }).addTo(map); } catch (e) { } }
+        async function loadBoundary() { try { const { data } = await db.rpc('get_tambon_boundary'); if (data) boundaryLayer = L.geoJSON(data, { interactive: false, style: { color: "#d32f2f", fill: false, dashArray: '10,5' } }).addTo(map); } catch (e) { } }
+
+
+        function resetNewProjectInputs() {
+            // 1. รีเซ็ตค่าในช่อง Input กลับเป็น Default
+            document.getElementById("iconInputNew").value = "&#xF3E7;";
+            document.getElementById("colorInputNew").value = "#ffc107";
+            
+            // 2. 🔥 บังคับเรียกฟังก์ชันนี้ เพื่อให้เคอร์เซอร์เมาส์เปลี่ยนกลับเป็นสีเหลืองทันที
+            updateRealtimeStyle('new');
+        }
+
+
+
 
         document.addEventListener('DOMContentLoaded', checkSession);
-
+        document.getElementById("iconInputNew").value = "&#xF3E7;";
+        
     </script>
 </body>
+
 </html>
