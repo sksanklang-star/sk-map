@@ -651,8 +651,9 @@
             projectLayerGroup.clearLayers();
             const tempLayer = L.geoJSON(features, {
                 interactive: true,
+                // 🔥 เปลี่ยนตรงนี้ ให้ดึงสีจาก Database (ถ้าไม่มีให้ใช้สีน้ำเงินเป็นค่าเริ่มต้น)
                 style: f => ({ 
-                    color: '#0d6efd', 
+                    color: f.properties.color || '#0d6efd', 
                     weight: f.geometry.type.includes('Line') ? 5 : 2, 
                     opacity: 0.9,
                     fillOpacity: 0.3 
