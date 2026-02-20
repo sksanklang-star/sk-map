@@ -326,31 +326,44 @@
         let currentStack = [];
 
         // ==========================================
-        // ระบบ Login และ Session
+        // 🔥 ระบบ Login & Role Check
         // ==========================================
         async function checkSession() { 
             const { data: { session } } = await db.auth.getSession(); 
-            
             if (session) { 
-                // 1. ซ่อนหน้า Login
-                document.getElementById('loginOverlay').style.opacity = '0'; 
-                
-                setTimeout(async () => { 
-                    document.getElementById('loginOverlay').style.visibility = 'hidden'; 
-                    
-                    // 2. เรียกโหลดข้อมูลแผนที่ (เริ่มทำงานเฉพาะตอนล็อกอินผ่าน)
-                    initApp();
-                }, 500); 
+                checkUserRoleAndInit(session.user.id); // เรียกฟังก์ชันเช็ค Role
             } else {
-                // ถ้าไม่มี Session ให้แสดงหน้า Login ปกติ
                 document.getElementById('loginOverlay').style.opacity = '1';
                 document.getElementById('loginOverlay').style.visibility = 'visible';
             }
         }
 
+        // 🔥 ฟังก์ชันเช็ค Role ของฝั่ง Client (ไม่เด้งไปหน้าอื่น)
+        async function checkUserRoleAndInit(userId) {
+            const { data: roleData, error } = await db
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', userId)
+                .single();
+
+            // เช็คว่าถ้าดึง Role ไม่ได้ หรือ Role ไม่ใช่ทั้ง admin และ client
+            if (error || !roleData || (roleData.role !== 'client')) {
+                alert("บัญชีของคุณไม่มีสิทธิ์เข้าใช้งานระบบนี้");
+                await db.auth.signOut(); // บังคับเตะออก
+                window.location.reload(); // โหลดหน้าใหม่เพื่อให้กลับไปหน้า Login คลีนๆ
+                return;
+            }
+
+            // ถ้าสิทธิ์ผ่าน (เป็น admin หรือ client) ให้เอา Overlay ออกแล้วโหลดข้อมูล
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(async () => { 
+                document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                initApp(); // ฟังก์ชันโหลดข้อมูลของหน้า Client
+            }, 500); 
+        }
+
         async function handleLogin(e) { 
             e.preventDefault(); 
-            
             const btn = document.getElementById('loginBtn');
             const errorDiv = document.getElementById('loginError');
             const errorText = document.getElementById('errorText');
@@ -360,7 +373,7 @@
             btn.innerHTML = '<span> verifying . . .  </span>';
             btn.disabled = true;
 
-            const { error } = await db.auth.signInWithPassword({ 
+            const { data, error } = await db.auth.signInWithPassword({ 
                 email: document.getElementById('authEmail').value, 
                 password: document.getElementById('authPassword').value 
             }); 
@@ -375,8 +388,38 @@
                 btn.innerHTML = originalBtnText;
                 btn.disabled = false;
             } else { 
-                checkSession(); 
+                checkUserRoleAndInit(data.user.id); 
             } 
+        }
+
+        async function checkUserRoleAndRedirect(userId) {
+            // ดึง Role จาก Supabase
+            const { data: roleData, error } = await db
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', userId)
+                .single();
+
+            // 1. กรณีไม่มี Role หรือเกิด Error
+            if (error || !roleData) {
+                alert("ไม่พบสิทธิ์การใช้งานของบัญชีนี้ กรุณาติดต่อผู้ดูแลระบบ");
+                await db.auth.signOut();
+                window.location.reload();
+                return;
+            }
+
+            // 2. ถ้าเป็น Admin ให้เด้งไปหน้า Admin
+            if (roleData.role === 'admin') {
+                window.location.href = 'admin.html'; // เปลี่ยนเส้นทางไปหน้าแอดมิน
+            } 
+            // 3. ถ้าเป็น Client ให้อยู่หน้านี้ต่อ (โหลดข้อมูล)
+            else if (roleData.role === 'client') {
+                document.getElementById('loginOverlay').style.opacity = '0'; 
+                setTimeout(async () => { 
+                    document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                    initApp(); // เริ่มโหลดข้อมูลแผนที่
+                }, 500); 
+            }
         }
 
         async function handleLogout() { 
@@ -441,7 +484,7 @@
         }
 
         // ==========================================
-        // โหลดข้อมูลแผนที่ (ทำงานหลัง Login)
+        // โหลดข้อมูลแผนที่ (ทำงานหลัง Login ผ่าน)
         // ==========================================
         async function initApp() {
             document.getElementById('dataLoadingOverlay').style.display = 'flex';
@@ -668,7 +711,7 @@
             }
         }
 
-        // เริ่มต้นการทำงานด้วยการเช็ค Session ก่อน ไม่โหลดข้อมูลจนกว่าจะล็อกอิน
+        // เริ่มตรวจสอบ Session ทันที
         document.addEventListener('DOMContentLoaded', checkSession);
 
     </script>

@@ -273,7 +273,7 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
             align-items: center;
             border: 1px solid #ddd;
-            width: 55%;
+            width: 70%;
             align-items: center;
             justify-content: center;
         }
@@ -716,76 +716,46 @@
         makeDraggable(document.getElementById("filterPanel")); makeDraggable(document.getElementById("layerPanel"));
 
         // this is function that loading data and show reload while fetching data
+        // 1. ตรวจสอบ Session ตอนเปิดหน้าเว็บ
         async function checkSession() { 
             const { data: { session } } = await db.auth.getSession(); 
-            
             if (session) { 
-                // 1. Hide Login Overlay
-                document.getElementById('loginOverlay').style.opacity = '0'; 
-                
-                setTimeout(async () => { 
-                    document.getElementById('loginOverlay').style.visibility = 'hidden'; 
-                    initAdminTools(); 
-                    
-                    // 2. SHOW Loading Overlay
-                    document.getElementById('dataLoadingOverlay').style.display = 'flex';
-
-                    try {
-                        // 3. Run all data fetching AT THE SAME TIME using Promise.all
-                        // This makes loading much faster than waiting for one to finish before starting the next.
-                        await Promise.all([
-                            loadExistingProjects(),
-                            loadMoo(),
-                            loadBoundary(),
-                            loadSoi()
-                        ]);
-                    } catch (error) {
-                        console.error("Error loading map data:", error);
-                        // Optional: Show an error message to the user here
-                    } finally {
-                        // 4. HIDE Loading Overlay when everything is done (or if an error occurs)
-                        document.getElementById('dataLoadingOverlay').style.display = 'none';
-                    }
-
-                }, 500); 
-            } 
+                checkUserRoleAndInit(session.user.id);
+            } else {
+                document.getElementById('loginOverlay').style.opacity = '1';
+                document.getElementById('loginOverlay').style.visibility = 'visible';
+            }
         }
         
 
+        // 2. จัดการตอนกดปุ่ม Login
         async function handleLogin(e) { 
             e.preventDefault(); 
-            
             const btn = document.getElementById('loginBtn');
             const errorDiv = document.getElementById('loginError');
             const errorText = document.getElementById('errorText');
 
-            // 1. ซ่อนกล่อง Error เก่า (ถ้ามี) และเปลี่ยนปุ่มเป็นสถานะกำลังโหลด
             errorDiv.classList.add('d-none');
             const originalBtnText = btn.innerHTML;
             btn.innerHTML = '<span> verifying . . .  </span>';
             btn.disabled = true;
 
-            // 2. ส่งข้อมูลไปเช็คกับ Supabase
-            const { error } = await db.auth.signInWithPassword({ 
+            const { data, error } = await db.auth.signInWithPassword({ 
                 email: document.getElementById('authEmail').value, 
                 password: document.getElementById('authPassword').value 
             }); 
             
-            // 3. ตรวจสอบผลลัพธ์
             if (error) { 
-                // ถ้ารหัสผิด: แสดงกล่องแดง และคืนค่าปุ่มกลับมาให้กดใหม่ได้
                 if (error.message.includes('Invalid login credentials')) {
                     errorText.innerText = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่';
                 } else {
                     errorText.innerText = 'เกิดข้อผิดพลาด: ' + error.message;
                 }
                 errorDiv.classList.remove('d-none');
-                
                 btn.innerHTML = originalBtnText;
                 btn.disabled = false;
             } else { 
-                // ถ้าถูก: ไปต่อ (ฟังก์ชัน checkSession จะซ่อน Overlay ให้เอง)
-                checkSession(); 
+                checkUserRoleAndInit(data.user.id); 
             } 
         }
         async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
@@ -1102,33 +1072,43 @@
             features.forEach(feature => {
                 let tempLayer;
                 
-                // ค่าสีจาก Database (เอาไว้ใช้กับ Point)
                 const dbIcon = feature.properties.icon || '&#xF3E7;';
                 const dbColor = feature.properties.color || '#ffc107';
 
                 if (feature.geometry.type === 'Point') {
-                    // ✅ กรณีเป็น "จุด": ใช้สีเดิมจาก Database (ตามที่คุณขอ)
                     tempLayer = L.marker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], { 
                         icon: getCustomIcon(dbIcon, dbColor), 
                         draggable: true 
                     });
                 } else {
-                    // ✅ กรณีเป็น "เส้น/พื้นที่": ใช้การสุ่มสี (Random) เพื่อให้แยกชิ้นส่วนง่าย
-                    // (ใช้ getRandomColor() สำหรับแต่ละชิ้นแยกกันเลย)
                     const randomColor = getRandomColor();
-                    
                     tempLayer = L.geoJSON(feature, { 
                         style: { color: randomColor, weight: 4, dashArray: "10, 5" } 
                     }).getLayers()[0];
-                    tempLayer.pm.enable({ draggable: true, snappable: true });
+                    
+                    // ❌ ลบ tempLayer.pm.enable(...) ตรงนี้ออก เพราะยังไม่ได้ลงแผนที่
                 }
                 
                 setupEditableLayer(tempLayer);
                 tempExtraPartsGroup.addLayer(tempLayer);
-                tempLayer.addTo(map);
+                
+                // 🔥 1. แอดลงแผนที่ก่อน!
+                tempLayer.addTo(map); 
+
+                // 🔥 2. ค่อยสั่งเปิดโหมด Edit ของ Geoman (จุดสี่เหลี่ยมถึงจะโผล่มาให้ลาก)
+                if (feature.geometry.type !== 'Point') {
+                    // แนะนำให้ใช้ draggable: false เพื่อป้องกันการเผลอลาก "ทั้งก้อน" หลุดตำแหน่ง
+                    // จะได้คลิกลากได้เฉพาะ "จุด (Vertex)" เพื่อเปลี่ยนรูปทรงครับ
+                    tempLayer.pm.enable({ 
+                        allowSelfIntersection: true,
+                        draggable: true, // ถ้าอยากให้ลากขยับทั้งก้อนได้ให้ตั้งเป็น true
+                        snappable: true,
+                        snapDistance: 30
+                    });
+                }
             });
 
-            // คืนค่า "สีจริง" ใส่กลับเข้าไปในช่อง Input (เพื่อให้ตอนกด Save สียังคงถูกต้องตาม DB)
+            // คืนค่า "สีจริง" ใส่กลับเข้าไปในช่อง Input
             document.getElementById('iconInputEdit').value = props.icon || '&#xF3E7;';
             document.getElementById('colorInputEdit').value = props.color || '#ffc107';
 
@@ -1663,23 +1643,24 @@
             });
             filteredFeaturesGlobal = filtered; renderFilteredLayers(filtered); renderFilteredList(filtered); document.getElementById('resultCount').innerText = `พบ ${filtered.length} โครงการ`;
         }
+
         function renderFilteredLayers(features) {
             projectLayerGroup.clearLayers();
             const tempLayer = L.geoJSON(features, {
                 interactive: true,
                 
-                // 🔥 FIX: สำหรับเส้นและ Polygon ให้ใช้สีสุ่ม (Random) เพื่อให้แยกแยะง่าย
+                // 🔥 เปลี่ยนกลับมาใช้สีจาก Database (ถ้าไม่มีสีใน DB จะใช้สีเหลืองแทน)
                 style: f => ({ 
-                    color: getRandomColor(), // <-- เปลี่ยนตรงนี้เป็นสุ่มสี
+                    color: f.properties.color || '#ffc107', 
                     weight: f.geometry.type.includes('Line') ? 6 : 2, 
                     opacity: 0.9,
-                    fillOpacity: 0.4 // เพิ่มความโปร่งแสงให้ดูสวยขึ้น
+                    fillOpacity: 0.4 // คงความโปร่งแสงไว้ให้ดูแผนที่ข้างใต้ได้
                 }),
                 
-                // 🔥 ส่วนจุด (Marker) ยังคงใช้สีจาก Database เหมือนเดิม
+                // 🔥 ส่วนจุด (Marker) ใช้สีและไอคอนจาก Database
                 pointToLayer: (feature, latlng) => {
                     const iconCode = feature.properties.icon || 'default';
-                    const colorCode = feature.properties.color || '#ffc107'; // ยังใช้สีจาก DB
+                    const colorCode = feature.properties.color || '#ffc107';
                     
                     const marker = L.marker(latlng, { icon: getCustomIcon(iconCode, colorCode) });
                     marker.on('click', (e) => { L.DomEvent.stopPropagation(e); handleStackClick(e); });
@@ -1694,6 +1675,7 @@
             });
             tempLayer.eachLayer(l => projectLayerGroup.addLayer(l));
         }
+
         function renderFilteredList(features) {
             const box = document.getElementById('sidebarList'); box.innerHTML = '';
             features.forEach((f, i) => {
@@ -1752,6 +1734,47 @@
         async function loadMoo() { try { const { data } = await db.rpc('get_moo_boundary'); if (data) mooLayer = L.geoJSON(data, { interactive: false, style: { color: "#1976d2", fillOpacity: 0.1, dashArray: '5,5' }, onEachFeature: (f, l) => l.bindTooltip(`หมู่ ${f.properties.moo_no}`, { permanent: true, direction: "center" }) }).addTo(map); } catch (e) { } }
         async function loadBoundary() { try { const { data } = await db.rpc('get_tambon_boundary'); if (data) boundaryLayer = L.geoJSON(data, { interactive: false, style: { color: "#d32f2f", fill: false, dashArray: '10,5' } }).addTo(map); } catch (e) { } }
 
+        // (โค้ด checkSession และ handleLogin ใช้เหมือนของฝั่ง Client ด้านบนได้เลยครับ)
+
+        // 3. ฟังก์ชันพระเอก: เช็ค Role ว่าเป็น "admin" เท่านั้น
+        async function checkUserRoleAndInit(userId) {
+            const { data: roleData, error } = await db
+                .from('user_roles')
+                .select('role')
+                .eq('user_id', userId)
+                .single();
+
+            // ⛔ เข้มงวด: ถ้าไม่ใช่ admin ด่าแล้วเตะออกทันที ไม่สนใจว่าเป็น client หรือไม่
+            if (error || !roleData || roleData.role !== 'admin') {
+                console.log("Access Denied. Role is:", roleData ? roleData.role : 'none');
+                alert("คุณไม่มีสิทธิ์ผู้ดูแลระบบ ไม่สามารถเข้าใช้งานหน้านี้ได้!");
+                await db.auth.signOut(); // บังคับเตะออก
+                window.location.reload(); // รีเฟรชกลับไปหน้าล็อกอินเคลียร์ๆ
+                return;
+            }
+
+            // ✅ ถ้าเป็น admin ค่อยให้ผ่าน
+            document.getElementById('loginOverlay').style.opacity = '0'; 
+            setTimeout(async () => { 
+                document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                initAdminTools(); // เปิดเครื่องมือวาด
+                
+                // โหลดข้อมูลแผนที่พร้อมโชว์ Loading
+                document.getElementById('dataLoadingOverlay').style.display = 'flex';
+                try {
+                    await Promise.all([
+                        loadExistingProjects(),
+                        loadMoo(),
+                        loadBoundary(),
+                        loadSoi()
+                    ]);
+                } catch (err) {
+                    console.error("Error loading map data:", err);
+                } finally {
+                    document.getElementById('dataLoadingOverlay').style.display = 'none';
+                }
+            }, 500); 
+        }
 
         function resetNewProjectInputs() {
             // 1. รีเซ็ตค่าในช่อง Input กลับเป็น Default
