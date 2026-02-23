@@ -679,6 +679,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <script>
+        document.getElementById('dataLoadingOverlay').style.display = 'flex';
         const supabaseUrl = 'https://azxinrvdwsvmchovvjpl.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk';
         const db = supabase.createClient(supabaseUrl, supabaseKey, {
@@ -1846,7 +1847,6 @@
             }
         }
 
-        document.getElementById('dataLoadingOverlay').style.display = 'flex';
     </script>
 </body>
 
