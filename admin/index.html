@@ -235,9 +235,11 @@
             height: 100vh;
             background: #212529;
             z-index: 9999;
-            display: flex;
+            display: none; /* 🔥 เปลี่ยนเป็นซ่อนไว้ก่อน */
+            opacity: 0;    /* 🔥 ตั้งค่าความโปร่งใสเป็น 0 */
             align-items: center;
             justify-content: center;
+            transition: opacity 0.5s ease; /* เพื่อให้ตอนแสดงผลมันค่อยๆ ปรากฏสวยๆ */
         }
 
         .login-card {
@@ -732,11 +734,20 @@
         // 1. ตรวจสอบ Session ตอนเปิดหน้าเว็บ
         async function checkSession() { 
             const { data: { session } } = await db.auth.getSession(); 
+            
+            const loginOverlay = document.getElementById('loginOverlay');
+
             if (session) { 
+                // ✅ มี Session: ให้ไปเช็คสิทธิ์และโหลดข้อมูลแผนที่ทันที
+                // หน้า Login จะไม่โผล่มาเลยเพราะเราไม่ได้สั่งโชว์
                 checkUserRoleAndInit(session.user.id);
             } else {
-                document.getElementById('loginOverlay').style.opacity = '1';
-                document.getElementById('loginOverlay').style.visibility = 'visible';
+                // ❌ ไม่มี Session: ค่อยสั่งแสดงหน้า Login
+                loginOverlay.style.display = 'flex';
+                // ใช้ setTimeout เล็กน้อยเพื่อให้ transition ทำงาน (ถ้าต้องการความสวยงาม)
+                setTimeout(() => {
+                    loginOverlay.style.opacity = '1';
+                }, 10);
             }
         }
         
@@ -1757,13 +1768,14 @@
                 .eq('user_id', userId)
                 .single();
 
+            const loginOverlay = document.getElementById('loginOverlay');
+
             // ⛔ เข้มงวด: ถ้าไม่ใช่ admin
             if (error || !roleData || roleData.role !== 'admin') {
                 console.log("Access Denied. Role is:", roleData ? roleData.role : 'none');
-                
                 // เปิด Overlay กลับมา
-                document.getElementById('loginOverlay').style.opacity = '1';
-                document.getElementById('loginOverlay').style.visibility = 'visible';
+                loginOverlay.style.display = 'flex';
+                loginOverlay.style.opacity = '1';
                 
                 // ซ่อนฟอร์มล็อกอิน และแสดงคำเตือนเรื่อง Role แทน
                 document.getElementById('loginForm').style.display = 'none';
@@ -1772,9 +1784,10 @@
             }
 
             // ✅ ถ้าเป็น admin ค่อยให้ผ่าน
-            document.getElementById('loginOverlay').style.opacity = '0'; 
+            loginOverlay.style.opacity = '0';
             setTimeout(async () => { 
-                document.getElementById('loginOverlay').style.visibility = 'hidden'; 
+                loginOverlay.style.visibility = 'hidden'; 
+                loginOverlay.style.display = 'none'; // 🔥 บังคับหายไปถาวร
                 initAdminTools(); // เปิดเครื่องมือวาด
                 
                 // โหลดข้อมูลแผนที่พร้อมโชว์ Loading
@@ -1832,6 +1845,8 @@
                 eyeIcon.classList.add('fa-eye'); // เปลี่ยนไอคอนกลับเป็นรูปตาปกติ
             }
         }
+
+        document.getElementById('dataLoadingOverlay').style.display = 'flex';
     </script>
 </body>
 
