@@ -443,6 +443,14 @@
                 <i class="fa-solid fa-circle-exclamation"></i> <span id="errorText">อีเมลหรือรหัสผ่านไม่ถูกต้อง</span>
             </div>
 
+            <div id="roleError" class="alert alert-warning d-none p-3 mb-3 mt-3 text-start small shadow-sm" role="alert">
+                <div class="fw-bold mb-1"><i class="fa-solid fa-hand-paper text-danger"></i> เข้าถึงไม่ได้</div>
+                บัญชีที่คุณใช้งานอยู่ไม่ใช่บัญชีผู้ดูแลระบบ (Admin) <br>
+                <button onclick="forceLogoutAndRetry()" class="btn btn-sm btn-danger mt-2 w-100 fw-bold">
+                    <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบเพื่อเปลี่ยนบัญชี
+                </button>
+            </div>
+
             <form id="loginForm" onsubmit="handleLogin(event)">
                 <input type="email" id="authEmail" class="form-control mb-3 mt-3" placeholder="admin@example.com" required>
                 
@@ -671,8 +679,11 @@
     <script>
         const supabaseUrl = 'https://azxinrvdwsvmchovvjpl.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6eGlucnZkd3N2bWNob3Z2anBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2MTY4NzMsImV4cCI6MjA4NjE5Mjg3M30.52JBZ4CFEKyVZMmTgNFgEUek75EyAbP0D7kxELh2EZk';
-        const db = supabase.createClient(supabaseUrl, supabaseKey);
-
+        const db = supabase.createClient(supabaseUrl, supabaseKey, {
+                    auth: {
+                        storageKey: 'sanklang-admin-session', // ตั้งชื่อ Key เฉพาะสำหรับ Admin
+                    }
+                });
         var map = L.map('map', { center: [18.784, 99.075], zoom: 14, zoomControl: false, maxZoom: 22 });
         var streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { 
             attribution: '© OpenStreetMap',
@@ -1746,12 +1757,17 @@
                 .eq('user_id', userId)
                 .single();
 
-            // ⛔ เข้มงวด: ถ้าไม่ใช่ admin ด่าแล้วเตะออกทันที ไม่สนใจว่าเป็น client หรือไม่
+            // ⛔ เข้มงวด: ถ้าไม่ใช่ admin
             if (error || !roleData || roleData.role !== 'admin') {
                 console.log("Access Denied. Role is:", roleData ? roleData.role : 'none');
-                alert("คุณไม่มีสิทธิ์ผู้ดูแลระบบ ไม่สามารถเข้าใช้งานหน้านี้ได้!");
-                await db.auth.signOut(); // บังคับเตะออก
-                window.location.reload(); // รีเฟรชกลับไปหน้าล็อกอินเคลียร์ๆ
+                
+                // เปิด Overlay กลับมา
+                document.getElementById('loginOverlay').style.opacity = '1';
+                document.getElementById('loginOverlay').style.visibility = 'visible';
+                
+                // ซ่อนฟอร์มล็อกอิน และแสดงคำเตือนเรื่อง Role แทน
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('roleError').classList.remove('d-none');
                 return;
             }
 
@@ -1776,6 +1792,12 @@
                     document.getElementById('dataLoadingOverlay').style.display = 'none';
                 }
             }, 500); 
+        }
+
+        // ฟังก์ชันสำหรับเตะ User ปกติออก เพื่อให้ล็อกอินเป็น Admin ใหม่
+        async function forceLogoutAndRetry() {
+            await db.auth.signOut();
+            window.location.reload(); 
         }
 
         function resetNewProjectInputs() {
