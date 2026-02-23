@@ -1419,7 +1419,7 @@
             const countEl = document.getElementById('drawCount');
             if (countEl) countEl.innerText = count;
 
-            if (count > 0) { container.style.display = 'flex'; isManualMode = true; } else { container.style.display = 'none'; }
+            if (count > 0) { container.style.display = 'flex'; isManualMode = true; } else { container.style.display = 'none'; resetEraserTool(); }
         }
 
         function finishNewProjectDrawing() {
