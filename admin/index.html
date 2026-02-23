@@ -1623,7 +1623,7 @@
             div.innerHTML = `<div class="col-5"><input type="number" class="form-control inp-year" value="${y}" placeholder="ปี"></div><div class="col-5"><input type="number" class="form-control inp-amount" value="${a}" placeholder="บาท"></div><div class="col-2"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()"><i class="fa-solid fa-trash"></i></button></div>`;
             document.getElementById('budgetList').appendChild(div);
         }
-        function resetBudgetForm() { document.getElementById('budgetList').innerHTML = ''; addBudgetRow(2567, ''); document.getElementById('newProjectForm').reset(); }
+        function resetBudgetForm() { document.getElementById('budgetList').innerHTML = '';  document.getElementById('newProjectForm').reset(); }
         async function deleteProject() { const pid = document.getElementById('editProjectId').value; if (await Swal.fire({ title: 'ยืนยันลบ?', icon: 'warning', showCancelButton: true }).then(r => r.isConfirmed)) { await db.from('sanklang_projects').delete().eq('fid', pid); bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide(); loadExistingProjects(); isManualMode = false; } }
 
         async function loadExistingProjects() {
