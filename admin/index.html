@@ -1304,7 +1304,6 @@ function startGeometryEdit() {
             const activeLayers = layers.filter(l => map.hasLayer(l));
 
             if (activeLayers.length > 0) {
-                // ... (Logic รวม Geometry เหมือนเดิม) ...
                 const firstGeo = activeLayers[0].toGeoJSON();
                 const type = firstGeo.geometry.type;
                 let newType;
@@ -1314,9 +1313,22 @@ function startGeometryEdit() {
                 else if (type === 'LineString') { newType = 'MultiLineString'; activeLayers.forEach(l => allCoords.push(l.toGeoJSON().geometry.coordinates)); }
                 else { newType = 'MultiPolygon'; activeLayers.forEach(l => allCoords.push(l.toGeoJSON().geometry.coordinates)); }
 
-                const newGeoJSON = { type: 'Feature', geometry: { type: newType, coordinates: allCoords }, properties: currentEditLayer.feature.properties };
                 const currentIcon = document.getElementById('iconInputEdit').value;
                 const currentColor = document.getElementById('colorInputEdit').value;
+
+                // 🔥 FIX: ฝังค่าสีและไอคอนใหม่ ลงไปใน Properties ด้วย เพื่อให้จำค่าได้ถ้ากดแก้ซ้ำ!
+                const updatedProperties = {
+                    ...currentEditLayer.feature.properties,
+                    icon: currentIcon,
+                    color: currentColor
+                };
+
+                // ใช้ updatedProperties แทนของเดิม
+                const newGeoJSON = { 
+                    type: 'Feature', 
+                    geometry: { type: newType, coordinates: allCoords }, 
+                    properties: updatedProperties 
+                };
 
                 const newLayer = L.geoJSON(newGeoJSON, {
                     style: { color: currentColor, weight: (newType.includes('Line') ? 6 : 2), opacity: 0.9 },
@@ -1339,17 +1351,12 @@ function startGeometryEdit() {
             tempExtraPartsGroup.clearLayers();
             if (map.pm.globalRemovalModeEnabled()) map.pm.disableGlobalRemovalMode();
 
-            // 🔥 FIX: รีเซ็ตยางลบ
             resetEraserTool();
             isManualMode = false;
 
             document.getElementById('editGeomControls').style.display = 'none';
             new bootstrap.Modal(document.getElementById('projectFormModal')).show();
-
-            document.getElementById("iconInputNew").value = "&#xF3E7;";
-            initAdminTools();
         }
-
 
         function setupEditableLayer(layer) {
             // ลบ event click เดิมออกก่อน (กันซ้ำ)
