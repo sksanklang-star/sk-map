@@ -1526,15 +1526,15 @@
                 // ============ 🟢 โหมดเพิ่มใหม่ (ADD MODE) ============
                 
                 // 🔥 FIX: สั่งลบจุดทิ้งให้หมด (Clear Layers) เพราะ User ไม่ได้กดบันทึก
-                tempNewLayersGroup.clearLayers();
+                // tempNewLayersGroup.clearLayers();
                 
                 // อัปเดตตัวเลขบนปุ่มเครื่องมือให้เหลือ 0
-                updateNewProjectButtons();
+                // updateNewProjectButtons();
                 
                 // รีเซ็ตค่าสี/ไอคอน กลับเป็น Default
-                if(typeof resetNewProjectInputs === 'function') resetNewProjectInputs();
+                // if(typeof resetNewProjectInputs === 'function') resetNewProjectInputs();
                 
-                isManualMode = false;
+                // isManualMode = false;
             }
             
             // ล้างสถานะยางลบ
@@ -1556,7 +1556,7 @@
 
             const box = document.getElementById('budgetList'); box.innerHTML = '';
             const { data } = await db.from('project_budgets').select('*').eq('project_id', pid).order('budget_year');
-            if (data && data.length) data.forEach(b => addBudgetRow(b.budget_year, b.amount)); else addBudgetRow(2567, '');
+            if (data && data.length) data.forEach(b => addBudgetRow(b.budget_year, b.amount)); 
             new bootstrap.Modal(document.getElementById('projectFormModal')).show();
         }
 
