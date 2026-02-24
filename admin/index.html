@@ -1062,19 +1062,19 @@
             return colors[Math.floor(Math.random() * colors.length)];
         }
 
-        function startGeometryEdit() {
+function startGeometryEdit() {
             if (!currentEditLayer) return;
             
-            // 1. รีเซ็ตยางลบ
             resetEraserTool();
 
             isManualMode = true;
             bootstrap.Modal.getInstance(document.getElementById('projectFormModal')).hide();
 
-            // Backup ข้อมูลเดิม
-            originalGeoJSONBackup = currentEditLayer.toGeoJSON();
-            originalStyleBackup = { ...currentEditLayer.options };
+            // ❌ ลบ 2 บรรทัดนี้ทิ้งไปเลยครับ (เพราะเรา Backup ไว้แล้วใน openEditModal)
+            // originalGeoJSONBackup = currentEditLayer.toGeoJSON(); 
+            // originalStyleBackup = { ...currentEditLayer.options };
 
+            // ดึงค่า Properties ปัจจุบันมาใช้ (เพื่อคงค่าสีและไอคอน)
             const geoJson = currentEditLayer.toGeoJSON();
             const props = geoJson.properties || {};
 
@@ -1109,23 +1109,19 @@
                     tempLayer = L.geoJSON(feature, { 
                         style: { color: randomColor, weight: 4, dashArray: "10, 5" } 
                     }).getLayers()[0];
-                    
-                    // ❌ ลบ tempLayer.pm.enable(...) ตรงนี้ออก เพราะยังไม่ได้ลงแผนที่
                 }
                 
                 setupEditableLayer(tempLayer);
                 tempExtraPartsGroup.addLayer(tempLayer);
                 
-                // 🔥 1. แอดลงแผนที่ก่อน!
+                // แอดลงแผนที่ก่อน!
                 tempLayer.addTo(map); 
 
-                // 🔥 2. ค่อยสั่งเปิดโหมด Edit ของ Geoman (จุดสี่เหลี่ยมถึงจะโผล่มาให้ลาก)
+                // ค่อยสั่งเปิดโหมด Edit ของ Geoman
                 if (feature.geometry.type !== 'Point') {
-                    // แนะนำให้ใช้ draggable: false เพื่อป้องกันการเผลอลาก "ทั้งก้อน" หลุดตำแหน่ง
-                    // จะได้คลิกลากได้เฉพาะ "จุด (Vertex)" เพื่อเปลี่ยนรูปทรงครับ
                     tempLayer.pm.enable({ 
                         allowSelfIntersection: true,
-                        draggable: true, // ถ้าอยากให้ลากขยับทั้งก้อนได้ให้ตั้งเป็น true
+                        draggable: true,
                         snappable: true,
                         snapDistance: 30
                     });
@@ -1545,6 +1541,11 @@
             if (isManualMode) return;
             const pid = f.properties.fid || f.properties.id; if (!pid) return;
             currentEditLayer = l;
+            
+            // 🔥 FIX 1: สร้าง Backup ทันทีที่เปิด Modal (นี่คือข้อมูลที่ถูกต้องที่สุดก่อนโดนแก้)
+            originalGeoJSONBackup = currentEditLayer.toGeoJSON();
+            originalStyleBackup = { ...currentEditLayer.options };
+
             document.getElementById('editProjectId').value = pid;
             document.getElementById('modalTitle').innerText = 'แก้ไขโครงการ';
             document.getElementById('btnDelete').style.display = 'block';
@@ -1556,7 +1557,7 @@
 
             const box = document.getElementById('budgetList'); box.innerHTML = '';
             const { data } = await db.from('project_budgets').select('*').eq('project_id', pid).order('budget_year');
-            if (data && data.length) data.forEach(b => addBudgetRow(b.budget_year, b.amount)); 
+            if (data && data.length) data.forEach(b => addBudgetRow(b.budget_year, b.amount)); else addBudgetRow(2567, '');
             new bootstrap.Modal(document.getElementById('projectFormModal')).show();
         }
 
