@@ -1854,7 +1854,34 @@ function startGeometryEdit() {
             }
         }
         document.getElementById('dataLoadingOverlay').style.display = 'flex';
+
+        // ==========================================
+        // 🔥 UNDO LAST VERTEX (Ctrl + Z หรือ Ctrl + C)
+        // ==========================================
+        document.addEventListener('keydown', function (e) {
+            // เช็คว่ากดปุ่ม Ctrl ค้างไว้ และกดปุ่ม Z หรือ C
+            if (e.ctrlKey && (e.key.toLowerCase() === 'z')) {
+                
+                // เช็คว่า Geoman กำลังเปิดเครื่องมือวาดรูปทรงอะไรอยู่
+                const activeShape = map.pm.Draw.getActiveShape();
+                
+                // ฟีเจอร์ลบจุดจะใช้ได้กับการวาดเส้น (Line) และรูปทรง (Polygon)
+                if (activeShape === 'Line' || activeShape === 'Polygon') {
+                    const drawInstance = map.pm.Draw[activeShape];
+                    
+                    // เรียกใช้ฟังก์ชันภายในของ Geoman เพื่อลบจุดล่าสุด (_removeLastVertex)
+                    if (drawInstance && typeof drawInstance._removeLastVertex === 'function') {
+                        drawInstance._removeLastVertex();
+                        
+                        // ป้องกัน Event ตั้งต้นของเบราว์เซอร์ (เช่น การกด Ctrl+C เพื่อ Copy text)
+                        e.preventDefault(); 
+                    }
+                }
+            }
+        });
     </script>
+
+    
 </body>
 
 </html>
